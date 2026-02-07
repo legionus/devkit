@@ -115,7 +115,7 @@ _create-image:
 	  "LABEL local.devkit.hash=$(SHAHASH)" \
 	  "LABEL local.devkit.agent=$(AGENT)" \
 	  "LABEL local.devkit.agent.version=$(AGENT.$(AGENT).VERSION)" \
-	  "CMD /usr/local/bin/$(AGENT.$(AGENT).BIN)" |
+	  "ENTRYPOINT [\"/usr/local/bin/$(AGENT.$(AGENT).BIN)\"]" |
 	$(PODMAN) image build --squash --force-rm -t "localhost/$(CURNAME)/$(DEVNAME):latest" -f-;
 
 _check-image:
@@ -123,7 +123,14 @@ _check-image:
 	mkdir -p -- $(HOME)/$(AGENT.$(AGENT).CONFDIR)
 
 ifneq ($(filter bash,$(MAKECMDGOALS)),)
-CMD = /bin/bash
+PODMAN_ARGS := --entrypoint=/bin/bash
+endif
+
+ifneq ($(filter run,$(MAKECMDGOALS)),)
+ARGS = $(strip $(eval found :=)$(foreach w,$(MAKECMDGOALS),$(if $(found),$(w),$(if $(filter run,$(w)),$(eval found := 1)))))
+
+.DEFAULT:
+	@:
 endif
 
 run: _check-image
@@ -131,7 +138,7 @@ run: _check-image
 	  --volume='$(GITPROJDIR):/srv/$(PROJNAME):rw' \
 	  --volume='$(HOME)/$(AGENT.$(AGENT).CONFDIR):/root/$(AGENT.$(AGENT).CONFDIR):rw' \
 	  --workdir='/srv/$(PROJNAME)' \
-	  --rm --tty --interactive -- "$(get-image-id)" $(CMD) || \
+	  --rm --tty --interactive $(PODMAN_ARGS) -- "$(get-image-id)" $(ARGS) || \
 	  echo "container exit status $$?"
 
 bash: run
