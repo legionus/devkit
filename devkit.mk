@@ -39,40 +39,13 @@ get-github-release = $(shell $(CURL) --silent --head --show-headers --no-locatio
 ubuntu.packages.npm = npm
 ubuntu.packages.scr = bash curl
 
-AGENT.copilot.HOME     = https://github.com/github/copilot-cli/releases/latest
-AGENT.copilot.VERSION  = $(call get-github-release,$(AGENT.copilot.HOME))
-AGENT.copilot.URL      = https://gh.io/copilot-install
-AGENT.copilot.SRCTYPE  = scr
-AGENT.copilot.BIN      = copilot
-AGENT.copilot.CONFDIR  = .copilot
+AGENT.opencode = HOMEURL=https://github.com/anomalyco/opencode/releases/latest       INST=scr LINK=https://opencode.ai/install   BIN=opencode CONFDIR=.config/opencode
+AGENT.copilot  = HOMEURL=https://github.com/github/copilot-cli/releases/latest       INST=scr LINK=https://gh.io/copilot-install BIN=copilot  CONFDIR=.copilot
+AGENT.claude   = HOMEURL=https://github.com/anthropics/claude-code/releases/latest   INST=scr LINK=https://claude.ai/install.sh  BIN=claude   CONFDIR=.claude
+AGENT.gemini   = HOMEURL=https://github.com/google-gemini/gemini-cli/releases/latest INST=npm LINK=@google/gemini-cli            BIN=gemini   CONFDIR=.gemini
+AGENT.codex    = HOMEURL=https://github.com/openai/codex/releases/latest             INST=npm LINK=@openai/codex                 BIN=codex    CONFDIR=.codex
 
-AGENT.codex.HOME       = https://github.com/openai/codex/releases/latest
-AGENT.codex.VERSION    = $(call get-github-release,$(AGENT.codex.HOME))
-AGENT.codex.URL        = @openai/codex
-AGENT.codex.SRCTYPE    = npm
-AGENT.codex.BIN        = codex
-AGENT.codex.CONFDIR    = .codex
-
-AGENT.opencode.HOME    = https://github.com/anomalyco/opencode/releases/latest
-AGENT.opencode.VERSION = $(call get-github-release,$(AGENT.opencode.HOME))
-AGENT.opencode.URL     = https://opencode.ai/install
-AGENT.opencode.SRCTYPE = scr
-AGENT.opencode.BIN     = opencode
-AGENT.opencode.CONFDIR = .config/opencode
-
-AGENT.gemini.HOME      = https://github.com/google-gemini/gemini-cli/releases/latest
-AGENT.gemini.VERSION   = $(call get-github-release,$(AGENT.gemini.HOME))
-AGENT.gemini.URL       = @google/gemini-cli
-AGENT.gemini.SRCTYPE   = npm
-AGENT.gemini.BIN       = gemini
-AGENT.gemini.CONFDIR   = .gemini
-
-AGENT.claude.HOME      = https://github.com/anthropics/claude-code/releases/latest
-AGENT.claude.VERSION   = $(call get-github-release,$(AGENT.claude.HOME))
-AGENT.claude.URL       = https://claude.ai/install.sh
-AGENT.claude.SRCTYPE   = scr
-AGENT.claude.BIN       = claude
-AGENT.claude.CONFDIR   = .claude
+$(foreach f,HOMEURL INST LINK BIN CONFDIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
 
 help:
 	@echo ""
@@ -108,20 +81,20 @@ _create-image:
 	  "FROM docker.io/library/ubuntu:latest" \
 	  "USER root" \
 	  "RUN apt-get -y -q update" \
-	  "RUN apt-get -y -q install $(sort ca-certificates bash curl tar $(DEVPKGS) $(ubuntu.packages.$(AGENT.$(AGENT).SRCTYPE)))" \
+	  "RUN apt-get -y -q install $(sort ca-certificates bash curl tar $(DEVPKGS) $(ubuntu.packages.$(INST)))" \
 	  "RUN apt-get -y -q clean; rm -rf /var/lib/apt/lists/*" \
-	  "RUN [ '$(AGENT.$(AGENT).SRCTYPE)' != 'npm' ] || { npm install -g '$(AGENT.$(AGENT).URL)'; }" \
-	  "RUN [ '$(AGENT.$(AGENT).SRCTYPE)' != 'scr' ] || { curl -fsSL '$(AGENT.$(AGENT).URL)' | bash; }" \
+	  "RUN [ '$(INST)' != 'npm' ] || { npm install -g '$(LINK)'; }" \
+	  "RUN [ '$(INST)' != 'scr' ] || { curl -fsSL '$(LINK)' | bash; }" \
 	  "LABEL local.devkit.name=$(DEVNAME)" \
 	  "LABEL local.devkit.hash=$(SHAHASH)" \
 	  "LABEL local.devkit.agent=$(AGENT)" \
-	  "LABEL local.devkit.agent.version=$(AGENT.$(AGENT).VERSION)" \
-	  "ENTRYPOINT [\"/usr/local/bin/$(AGENT.$(AGENT).BIN)\"]" |
+	  "LABEL local.devkit.agent.version=$(call get-github-release,$(HOMEURL))" \
+	  "ENTRYPOINT [\"/usr/local/bin/$(BIN)\"]" |
 	$(PODMAN) image build --squash --force-rm -t "localhost/$(CURNAME)/$(DEVNAME):latest" -f-;
 
 _check-image:
 	$(Q)[ -n "$(get-image-id)" ] || $(MAKE) -f "$(CURFILE)" _create-image
-	mkdir -p -- $(HOME)/$(AGENT.$(AGENT).CONFDIR)
+	mkdir -p -- $(HOME)/$(CONFDIR)
 
 ifneq ($(filter bash,$(MAKECMDGOALS)),)
 PODMAN_ARGS := --entrypoint=/bin/bash
@@ -137,7 +110,7 @@ endif
 run: _check-image
 	$(Q)$(PODMAN) container run \
 	  --volume='$(GITPROJDIR):/srv/$(PROJNAME):rw' \
-	  --volume='$(HOME)/$(AGENT.$(AGENT).CONFDIR):/root/$(AGENT.$(AGENT).CONFDIR):rw' \
+	  --volume='$(HOME)/$(CONFDIR):/root/$(CONFDIR):rw' \
 	  --workdir='/srv/$(PROJNAME)' \
 	  --rm --tty --interactive $(PODMAN_ARGS) -- "$(get-image-id)" $(ARGS) || \
 	  echo "container exit status $$?"
@@ -147,10 +120,10 @@ bash: run
 
 check:
 	$(Q)image_id="$(get-image-id)";
-	avail_ver="$(AGENT.$(AGENT).VERSION)";
+	avail_ver="$(call get-github-release,$(HOMEURL))";
 	image_ver="`[ -z "$$image_id" ] || $(PODMAN) image inspect "$$image_id" --format '{{index .Labels "local.devkit.agent.version"}}'`";
 	echo "The $(AGENT) information:";
-	echo " - release home page: $(AGENT.$(AGENT).HOME)";
+	echo " - release home page: $(HOMEURL)";
 	echo " - available version: $${avail_ver:-*unavailable*}";
 	echo " -   current version: $${image_ver:-*unknown*}";
 
