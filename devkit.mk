@@ -5,6 +5,7 @@
 
 CURNAME = devkit
 CURFILE = $(lastword $(MAKEFILE_LIST))
+PROG ?= make -f $(CURFILE) --
 
 V = $(VERBOSE)
 Q = $(if $(V),,@)
@@ -58,7 +59,8 @@ PODMAN_VOLUMES = \
 
 help:
 	@echo ""
-	echo "Usage: make -f $(CURFILE) [ help$(foreach x,init clean check upgrade list bash run, | $(x)) ]"
+	echo "Usage: $(PROG) [ help$(foreach x,init clean check upgrade list bash, | $(x)) ]"
+	echo "   or: $(PROG) run [agent arguments]"
 	echo ""
 	echo "The project allows you to manage isolated containers with AI agents."
 	echo ""
