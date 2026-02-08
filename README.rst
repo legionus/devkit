@@ -77,6 +77,46 @@ Required utilities:
 - ``podman``
 - ``curl``
 
+Initial Setup
+-------------
+
+Initialize configuration::
+
+    make -f devkit.mk init
+
+
+Usage
+-----
+
+Run agent::
+
+    make -f devkit.mk run
+
+Open interactive shell::
+
+    make -f devkit.mk bash
+
+Check available and current agent versions::
+
+    make -f devkit.mk check
+
+List devkit images::
+
+    make -f devkit.mk list
+
+Upgrade container image::
+
+    make -f devkit.mk upgrade
+
+Remove images for current environment::
+
+    make -f devkit.mk clean
+
+Remove all devkit images::
+
+    make -f devkit.mk clean-all
+
+
 Configuration
 -------------
 
@@ -164,45 +204,6 @@ Benefits:
 
 Local repository configuration may override included values.
 
-
-Initial Setup
--------------
-
-Initialize configuration::
-
-    make -f devkit.mk init
-
-
-Usage
------
-
-Run agent::
-
-    make -f devkit.mk run
-
-Open interactive shell::
-
-    make -f devkit.mk bash
-
-Check available and current agent versions::
-
-    make -f devkit.mk check
-
-List devkit images::
-
-    make -f devkit.mk list
-
-Upgrade container image::
-
-    make -f devkit.mk upgrade
-
-Remove images for current environment::
-
-    make -f devkit.mk clean
-
-Remove all devkit images::
-
-    make -f devkit.mk clean-all
 
 
 Design Goals
