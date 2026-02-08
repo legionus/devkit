@@ -28,10 +28,13 @@ endif
 DEF_AGENT = copilot
 DEF_DEVNAME = $(PROJNAME)
 
+ifneq ($(GITPROJDIR),)
 AGENT   = $(shell $(GIT) config get       devkit.agent    || echo $(DEF_AGENT))
 DEVNAME = $(shell $(GIT) config get       devkit.name     || echo $(DEF_DEVNAME))
 DEVPKGS = $(shell $(GIT) config get --all devkit.packages)
+VOLUMES = $(shell $(GIT) config get --all devkit.volumes)
 SHAHASH = $(shell echo $(AGENT) $(sort $(DEVPKGS)) | sha256sum | cut -f1 -d\ )
+endif
 
 get-image-id       = $(shell $(PODMAN) image list --filter label=local.devkit.hash=$(SHAHASH) --format '{{.Id}}')
 get-github-release = $(shell $(CURL) --silent --head --show-headers --no-location '$(1)' | sed -n 's,^location:.*/tag/v\?,,p')
@@ -47,6 +50,11 @@ AGENT.gemini   = HOMEURL=https://github.com/google-gemini/gemini-cli/releases/la
 AGENT.codex    = HOMEURL=https://github.com/openai/codex/releases/latest             INST=npm LINK=@openai/codex                 BIN=codex    CONFDIR=.codex
 
 $(foreach f,HOMEURL INST LINK BIN CONFDIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
+
+PODMAN_VOLUMES = \
+	$(GITPROJDIR):/srv/$(PROJNAME):rw \
+	$(HOME)/$(CONFDIR):/root/$(CONFDIR):rw \
+	$(VOLUMES)
 
 help:
 	@echo ""
@@ -115,8 +123,7 @@ endif
 
 run: _check-image
 	$(Q)$(PODMAN) container run \
-	  --volume='$(GITPROJDIR):/srv/$(PROJNAME):rw' \
-	  --volume='$(HOME)/$(CONFDIR):/root/$(CONFDIR):rw' \
+	  $(addprefix --volume=,$(PODMAN_VOLUMES)) \
 	  --workdir='/srv/$(PROJNAME)' \
 	  --network=host \
 	  --rm --tty --interactive $(PODMAN_ARGS) -- "$(get-image-id)" $(ARGS) || \
