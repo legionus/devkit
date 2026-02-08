@@ -113,6 +113,7 @@ run: _check-image
 	  --volume='$(GITPROJDIR):/srv/$(PROJNAME):rw' \
 	  --volume='$(HOME)/$(CONFDIR):/root/$(CONFDIR):rw' \
 	  --workdir='/srv/$(PROJNAME)' \
+	  --network=host \
 	  --rm --tty --interactive $(PODMAN_ARGS) -- "$(get-image-id)" $(ARGS) || \
 	  echo "container exit status $$?"
 
