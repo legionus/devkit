@@ -4,6 +4,10 @@ devkit
 devkit is a Makefile-based utility for running AI agents inside isolated Podman
 containers with project-specific dependencies.
 
+**Disclaimer**: devkit provides process isolation, not security isolation.
+Nothing prevents an agent from running destructive commands such as
+``rm -rf .git`` inside your mounted project directory.
+
 The tool focuses on:
 
 - reproducible development environments
