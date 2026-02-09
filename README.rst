@@ -220,6 +220,18 @@ Design Goals
 - safe execution of AI agents
 
 
+Limitations
+-----------
+
+- Agent conversation history is not shared between containers and the host
+  system. Projects are mounted at ``/srv`` rather than at their original host
+  path, so the agent treats them as different projects.
+
+- Images are not portable across hosts. The container user is created with the
+  host's UID:GID, so an image built on one machine will not work on another
+  with different user IDs.
+
+
 License
 -------
 
