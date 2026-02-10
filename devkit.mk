@@ -146,7 +146,7 @@ run: _check-image
 	  $(PODMAN) container exec --tty --interactive \
 	    --user='$(if $(ROOT),root,$(UID):$(GID))' \
 	    --workdir='/srv/$(PROJNAME)' \
-	    -- '$(AGENT)-for-$(PROJNAME)' /bin/bash $(ARGS);
+	    -- '$(AGENT)-for-$(PROJNAME)' $(DEVSHELL) $(ARGS);
 	fi
 
 shell: run
