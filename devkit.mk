@@ -34,12 +34,13 @@ DEF_DEVNAME = $(PROJNAME)
 DEF_DEVSHELL = /bin/bash
 
 ifneq ($(GITPROJDIR),)
+VENDOR  = ubuntu
 AGENT   = $(shell $(GIT) config get       devkit.agent    || echo $(DEF_AGENT))
 DEVNAME = $(shell $(GIT) config get       devkit.name     || echo $(DEF_DEVNAME))
 DEVSHELL= $(shell $(GIT) config get       devkit.shell    || echo $(DEF_DEVSHELL))
 DEVPKGS = $(shell $(GIT) config get --all devkit.packages)
 VOLUMES = $(shell $(GIT) config get --all devkit.volumes)
-SHAHASH = $(shell echo $(UID):$(GID) $(AGENT) $(sort $(DEVPKGS)) | sha256sum | cut -f1 -d\ )
+SHAHASH = $(shell echo $(UID):$(GID) $(AGENT) $(VENDOR) $(sort $(DEVPKGS)) | sha256sum | cut -f1 -d\ )
 endif
 
 get-image-id       = $(shell $(PODMAN) image list --filter label=local.devkit.hash=$(SHAHASH) --format '{{.Id}}')
@@ -92,7 +93,7 @@ init:
 	  echo "Discovered the existing configuration and cowardly refuse to break it." >&2;
 	fi
 
-_create-image:
+_create-image-ubuntu:
 	$(Q)[ -n "$(get-image-id)" ] || printf '%s\n' \
 	  "FROM docker.io/library/ubuntu:latest" \
 	  "USER root" \
@@ -117,7 +118,7 @@ _create-image:
 	  --tag="localhost/$(CURNAME)/$(DEVNAME):latest"
 
 _check-image:
-	$(Q)[ -n "$(get-image-id)" ] || $(MAKE) -f "$(CURFILE)" _create-image
+	$(Q)[ -n "$(get-image-id)" ] || $(MAKE) -f "$(CURFILE)" _create-image-$(VENDOR)
 	[ -z '$(CONFDIR)' ] || mkdir -p -- $(HOME)/$(CONFDIR)
 
 ifneq ($(filter shell,$(MAKECMDGOALS)),)
@@ -167,7 +168,7 @@ clean:
 	$(Q)$(PODMAN) image list --filter label=local.devkit.name=$(DEVNAME) --format '{{.Id}}' | xargs -r $(PODMAN) image rm
 
 upgrade: clean
-	$(Q)$(MAKE) -f "$(CURFILE)" _create-image
+	$(Q)$(MAKE) -f "$(CURFILE)" _create-image-$(VENDOR)
 
 list:
 	$(Q)$(PODMAN) image list --filter label=local.devkit.name
