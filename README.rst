@@ -18,6 +18,7 @@ The tool focuses on:
 devkit intentionally avoids introducing new configuration formats. All
 configuration lives in git-config.
 
+
 Concept
 -------
 
@@ -33,10 +34,12 @@ Images are automatically reused when configuration matches.
 Each repository declares its development environment via git configuration.
 Multiple repositories can share the same environment profile.
 
+
 Architecture
 ------------
 
 devkit follows a simple model:
+
 
 Profiles
 --------
@@ -49,16 +52,19 @@ A profile defines:
 
 Profiles can be shared between repositories using git configuration includes.
 
+
 Local Overrides
 ---------------
 
 Repositories may override profile values locally using git-config.
+
 
 Image Identity
 --------------
 
 Container images are content-addressed: `hash(agent + packages) -> image
 identity`. This prevents duplicate builds and allows transparent reuse.
+
 
 Isolation Model
 ---------------
@@ -70,6 +76,7 @@ Isolation Model
 
 - Agent configuration directories are bind-mounted from HOME.
 - Environment is isolated from host system.
+
 
 Requirements
 ------------
@@ -96,9 +103,10 @@ Run agent::
 
     make -f devkit.mk run
 
-Open interactive shell::
+Open interactive shell. If the container is already running, a second session
+will be opened in the container::
 
-    make -f devkit.mk bash
+    make -f devkit.mk shell
 
 Check available and current agent versions::
 
@@ -140,11 +148,12 @@ Defines which AI agent should be executed.
 
 Supported agents:
 
-- ``copilot``
-- ``codex``
-- ``opencode``
-- ``gemini``
-- ``claude``
+- `aider <https://aider.chat>`
+- `claude <https://claude.ai>`
+- `codex <https://github.com/openai/codex>`
+- `copilot <https://github.com/github/copilot-cli>`
+- `gemini <https://geminicli.com>`
+- `opencode <https://opencode.ai>`
 
 Example::
 
@@ -166,6 +175,14 @@ Typical usage:
 - centralized dependency definitions
 
 
+devkit.shell
+------------
+
+This variable allows you to override the shell that will be used in the
+container (the default is `/bin/bash`). If the user changes this parameter,
+user must take care of installing shell package in the container.
+
+
 devkit.packages
 ---------------
 
@@ -176,6 +193,12 @@ Example::
     git config --add devkit.packages gcc
     git config --add devkit.packages make
     git config --add devkit.packages gdb
+
+
+devkit.volumes
+--------------
+
+Additional list of podman volumes to mount into the container.
 
 
 Shared profiles via git include
@@ -197,7 +220,7 @@ Example shared profile:
 
 Include inside repository::
 
-    git config include.path ~/.config/devkit/basic-c.gitconfig
+    git config include.path ~/devkit/gitconfig.d/kernel-dev.ini
 
 Benefits:
 
@@ -207,7 +230,6 @@ Benefits:
 - minimal per-repository setup
 
 Local repository configuration may override included values.
-
 
 
 Design Goals
