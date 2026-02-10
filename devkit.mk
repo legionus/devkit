@@ -26,8 +26,8 @@ ifeq ($(filter help clean clean-all list,$(MAKECMDGOALS)),)
 $(if $(PROJNAME),,$(error Unable to locate the git repository))
 endif
 
-UID = $(shell id -u)
-GID = $(shell id -g)
+UID := $(shell id -u)
+GID := $(shell id -g)
 
 DEF_AGENT = copilot
 DEF_DEVNAME = $(PROJNAME)
@@ -130,12 +130,21 @@ ARGS = $(strip $(eval found :=)$(foreach w,$(MAKECMDGOALS),$(if $(found),$(w),$(
 endif
 
 run: _check-image
-	$(Q)$(PODMAN) container run --name '$(AGENT)-for-$(PROJNAME)' \
-	  $(addprefix --volume=,$(PODMAN_VOLUMES)) \
-	  --rm --tty --interactive --log-driver=none \
-	  --network=host --userns=keep-id --user='$(UID):$(GID)' \
-	  --workdir='/srv/$(PROJNAME)' \
-	  $(PODMAN_ARGS) -- '$(get-image-id)' $(ARGS)
+	$(Q)if ! $(PODMAN) container exists '$(AGENT)-for-$(PROJNAME)'; then
+	  $(PODMAN) container run --tty --interactive \
+	    --name '$(AGENT)-for-$(PROJNAME)' \
+	    $(addprefix --volume=,$(PODMAN_VOLUMES)) \
+	    --rm --log-driver=none \
+	    --network=host --userns=keep-id \
+	    --user='$(UID):$(GID)' \
+	    --workdir='/srv/$(PROJNAME)' \
+	    $(PODMAN_ARGS) -- '$(get-image-id)' $(ARGS);
+	else
+	  $(PODMAN) container exec --tty --interactive \
+	    --user='$(if $(ROOT),root,$(UID):$(GID))' \
+	    --workdir='/srv/$(PROJNAME)' \
+	    -- '$(AGENT)-for-$(PROJNAME)' /bin/bash $(ARGS);
+	fi
 
 bash: run
 	@:
