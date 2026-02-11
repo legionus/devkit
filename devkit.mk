@@ -159,6 +159,7 @@ check:
 	image_ver="`[ -z "$$image_id" ] || $(PODMAN) image inspect "$$image_id" --format '{{index .Labels "local.devkit.agent.version"}}'`";
 	echo "The $(AGENT) information:";
 	echo " - release home page: $(HOMEURL)";
+	echo " -  config directory: ~/$(CONFDIR)";
 	echo " - available version: $${avail_ver:-*unavailable*}";
 	echo " -   current version: $${image_ver:-*unknown*}";
 
