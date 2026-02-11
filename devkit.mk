@@ -65,8 +65,7 @@ PODMAN_VOLUMES = \
 
 help:
 	@echo ""
-	echo "Usage: $(PROG) [ help$(foreach x,init clean check upgrade list shell, | $(x)) ]"
-	echo "   or: $(PROG) run [agent arguments]"
+	echo "Usage: $(PROG) [ help$(foreach x,init clean check upgrade list shell run, | $(x)) ]"
 	echo ""
 	echo "The project allows you to manage isolated containers with AI agents."
 	echo ""
@@ -125,15 +124,12 @@ ifneq ($(filter shell,$(MAKECMDGOALS)),)
 PODMAN_ARGS := --entrypoint=$(DEVSHELL)
 endif
 
-ifneq ($(filter run,$(MAKECMDGOALS)),)
-ARGS = $(strip $(eval found :=)$(foreach w,$(MAKECMDGOALS),$(if $(found),$(w),$(if $(filter run,$(w)),$(eval found := 1)))))
-
-.DEFAULT:
-	@:
-endif
-
 run: _check-image
-	$(Q)if ! $(PODMAN) container exists '$(AGENT)-for-$(PROJNAME)'; then
+	$(Q)set --; i=0; while [ $$i -lt $${NARGS:-0} ]; do
+	  eval "a=\"\$${ARG$$i-}\""; set -- "$$@" "$$a";
+	  i=$$(( $$i + 1 ));
+	done
+	if ! $(PODMAN) container exists '$(AGENT)-for-$(PROJNAME)'; then
 	  $(PODMAN) container run --tty --interactive \
 	    --name '$(AGENT)-for-$(PROJNAME)' \
 	    $(addprefix --volume=,$(PODMAN_VOLUMES)) \
@@ -141,12 +137,12 @@ run: _check-image
 	    --network=host --userns=keep-id \
 	    --user='$(UID):$(GID)' \
 	    --workdir='/srv/$(PROJNAME)' \
-	    $(PODMAN_ARGS) -- '$(get-image-id)' $(ARGS);
+	    $(PODMAN_ARGS) -- '$(get-image-id)' "$$@" $(ARGS);
 	else
 	  $(PODMAN) container exec --tty --interactive \
 	    --user='$(if $(ROOT),root,$(UID):$(GID))' \
 	    --workdir='/srv/$(PROJNAME)' \
-	    -- '$(AGENT)-for-$(PROJNAME)' $(DEVSHELL) $(ARGS);
+	    -- '$(AGENT)-for-$(PROJNAME)' $(DEVSHELL) "$$@" $(ARGS);
 	fi
 
 shell: run

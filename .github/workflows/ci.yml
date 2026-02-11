@@ -36,10 +36,10 @@ jobs:
 
       - name: "Check"
         run: |
-          ./devkit.sh shell ARGS='-c "stat /usr/local/bin/${{ matrix.agent }}"'    </dev/tty60
-          ./devkit.sh shell ARGS='-c "test -x /usr/local/bin/${{ matrix.agent }}"' </dev/tty60
-          ./devkit.sh shell ARGS='-c "command -v jq"'                              </dev/tty60
+          ./devkit.sh shell -c "stat /usr/local/bin/${{ matrix.agent }}"    </dev/tty60
+          ./devkit.sh shell -c "test -x /usr/local/bin/${{ matrix.agent }}" </dev/tty60
+          ./devkit.sh shell -c "command -v jq"                              </dev/tty60
 
       - name: "Version"
         run: |
-          [ '${{ matrix.agent }}' = 'gemini' ] || ./devkit.sh run --version        </dev/tty60
+          [ '${{ matrix.agent }}' = 'gemini' ] || ./devkit.sh run --version </dev/tty60
