@@ -154,6 +154,7 @@ Supported agents:
 - `copilot <https://github.com/github/copilot-cli>`
 - `gemini <https://geminicli.com>`
 - `opencode <https://opencode.ai>`
+- `grok (unofficial) <https://grokcli.io>`
 
 Example::
 

@@ -55,9 +55,10 @@ AGENT.claude   = HOMEURL=https://github.com/anthropics/claude-code/releases/late
 AGENT.aider    = HOMEURL=https://github.com/Aider-AI/aider/releases/latest           INST=scr LINK=https://aider.chat/install.sh BIN=aider    CONFDIR=.aider
 AGENT.gemini   = HOMEURL=https://github.com/google-gemini/gemini-cli/releases/latest INST=npm LINK=@google/gemini-cli            BIN=gemini   CONFDIR=.gemini
 AGENT.codex    = HOMEURL=https://github.com/openai/codex/releases/latest             INST=npm LINK=@openai/codex                 BIN=codex    CONFDIR=.codex
+AGENT.grok     = HOMEURL=https://github.com/superagent-ai/grok-cli/releases/latest   INST=npm LINK=@vibe-kit/grok-cli            BIN=grok     CONFDIR=.grok
 
 ifeq ($(strip $(AGENT.$(AGENT))),)
-$(error Unknown devkit.agent '$(AGENT)'. Supported: aider, claude, codex, copilot, gemini, opencode)
+$(error Unknown devkit.agent '$(AGENT)'. Supported: aider, claude, codex, copilot, gemini, opencode, grok)
 endif
 
 $(foreach f,HOMEURL INST LINK BIN CONFDIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))

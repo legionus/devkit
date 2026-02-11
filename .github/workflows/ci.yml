@@ -16,6 +16,7 @@ jobs:
           - codex
           - copilot
           - gemini
+          - grok
           - opencode
       fail-fast: false
     steps:
