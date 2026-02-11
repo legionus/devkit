@@ -44,7 +44,7 @@ SHAHASH = $(shell echo $(UID):$(GID) $(AGENT) $(VENDOR) $(sort $(DEVPKGS)) | sha
 endif
 
 get-image-id       = $(shell $(PODMAN) image list --filter label=local.devkit.hash=$(SHAHASH) --format '{{.Id}}')
-get-github-release = $(shell $(CURL) --silent --head --show-headers --no-location '$(1)' | sed -n 's,^location:.*/tag/v\?,,p')
+get-github-release = $(shell $(CURL) -fsSL -o /dev/null -w '%{url_effective}' -L '$(1)' | sed -n 's,.*/tag/v\?,,p')
 
 ubuntu.packages.npm = npm
 ubuntu.packages.scr = bash curl
