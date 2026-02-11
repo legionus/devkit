@@ -104,9 +104,9 @@ _create-image-ubuntu:
 	  'SHELL ["/bin/bash", "-eo", "pipefail", "-c"]' \
 	  'RUN min="`sed -ne 's,^UID_MIN[[:space:]]*,,p' /etc/login.defs`"; getent passwd | while IFS=: read -r name _ uid _; do [ "$$uid" -lt "$$min" ] || userdel -rf "$$name"; done' \
 	  "RUN groupadd -g '$(GID)' user; useradd --uid='$(UID)' --gid='$(GID)' -d /home/user -m user" \
-	  "RUN apt-get -y -q update" \
-	  "RUN apt-get -y -q install $(sort ca-certificates bash curl tar $(DEVPKGS) $(ubuntu.packages.$(INST)))" \
-	  "RUN apt-get -y -q clean; rm -rf /var/lib/apt/lists/*" \
+	  "RUN apt-get -y -q$(if $(Q),qq) update" \
+	  "RUN apt-get -y -q$(if $(Q),qq) install $(sort ca-certificates bash curl tar $(DEVPKGS) $(ubuntu.packages.$(INST)))" \
+	  "RUN apt-get -y -q$(if $(Q),qq) clean; rm -rf /var/lib/apt/lists/*" \
 	  'RUN find /root -type d | xargs -r chmod -R g+rx,o+rx' \
 	  "RUN [ '$(INST)' != 'npm' ] || { npm install -g '$(LINK)'; }" \
 	  "RUN [ '$(INST)' != 'scr' ] || { curl -fsSL '$(LINK)' | bash; }" \
