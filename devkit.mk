@@ -32,12 +32,14 @@ GID := $(shell id -g)
 DEF_AGENT = copilot
 DEF_DEVNAME = $(PROJNAME)
 DEF_DEVSHELL = /bin/bash
+DEF_EDITOR = /usr/bin/editor
 
 ifneq ($(GITPROJDIR),)
 VENDOR  = ubuntu
 AGENT   = $(shell $(GIT) config get       devkit.agent    || echo $(DEF_AGENT))
 DEVNAME = $(shell $(GIT) config get       devkit.name     || echo $(DEF_DEVNAME))
 DEVSHELL= $(shell $(GIT) config get       devkit.shell    || echo $(DEF_DEVSHELL))
+EDITOR  = $(shell $(GIT) config get       devkit.editor   || echo $(DEF_EDITOR))
 DEVPKGS = $(shell $(GIT) config get --all devkit.packages)
 VOLUMES = $(shell $(GIT) config get --all devkit.volumes)
 SHAHASH = $(shell echo $(UID):$(GID) $(AGENT) $(VENDOR) $(sort $(DEVPKGS)) | sha256sum | cut -f1 -d\ )
@@ -106,7 +108,7 @@ _create-image-ubuntu:
 	  'RUN min="`sed -ne 's,^UID_MIN[[:space:]]*,,p' /etc/login.defs`"; getent passwd | while IFS=: read -r name _ uid _; do [ "$$uid" -lt "$$min" ] || userdel -rf "$$name"; done' \
 	  "RUN groupadd -g '$(GID)' user; useradd --uid='$(UID)' --gid='$(GID)' -d /home/user -m user" \
 	  "RUN apt-get -y -q$(if $(Q),qq) update" \
-	  "RUN apt-get -y -q$(if $(Q),qq) install $(sort ca-certificates bash curl tar $(DEVPKGS) $(ubuntu.packages.$(INST)))" \
+	  "RUN apt-get -y -q$(if $(Q),qq) install $(sort ca-certificates bash vim-tiny curl tar $(DEVPKGS) $(ubuntu.packages.$(INST)))" \
 	  "RUN apt-get -y -q$(if $(Q),qq) clean; rm -rf /var/lib/apt/lists/*" \
 	  'RUN find /root -type d | xargs -r chmod -R g+rx,o+rx' \
 	  "RUN [ '$(INST)' != 'npm' ] || { npm install -g '$(LINK)'; }" \
@@ -140,11 +142,13 @@ run: _check-image
 	    $(addprefix --volume=,$(PODMAN_VOLUMES)) \
 	    --rm --log-driver=none \
 	    --network=host --userns=keep-id \
+	    --env=EDITOR=$(EDITOR) \
 	    --user='$(UID):$(GID)' \
 	    --workdir='/srv/$(PROJNAME)' \
 	    $(PODMAN_ARGS) -- '$(get-image-id)' "$$@" $(ARGS);
 	else
 	  $(PODMAN) container exec --tty --interactive \
+	    --env=EDITOR=$(EDITOR) \
 	    --user='$(if $(ROOT),root,$(UID):$(GID))' \
 	    --workdir='/srv/$(PROJNAME)' \
 	    -- '$(AGENT)-for-$(PROJNAME)' $(DEVSHELL) "$$@" $(ARGS);
