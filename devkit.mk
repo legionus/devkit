@@ -120,7 +120,7 @@ _create-image-ubuntu:
 	  'LABEL local.devkit.agent=$(AGENT)' \
 	  'LABEL local.devkit.agent.version=$(call get-github-release,$(HOMEURL))' \
 	  'ENTRYPOINT ["/usr/local/bin/$(BIN)"]' |
-	$(PODMAN) image build --squash --force-rm --format=docker --file=- \
+	$(PODMAN) image build --layers=false --force-rm --format=docker --file=- \
 	  --tag="localhost/$(CURNAME)/$(DEVNAME):latest"
 
 _check-image:
