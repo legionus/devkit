@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright (C) 2026  Alexey Gladkov <gladkov.alexey@gmail.com>
-.PHONY: _check-image _create-image help init clean clean-all check upgrade list shell run
-.ONESHELL:
 
 CURNAME = devkit
 CURFILE = $(lastword $(MAKEFILE_LIST))
 PROG ?= make -f $(CURFILE) --
+VERSION = 0-dev
 
 V = $(VERBOSE)
 Q = $(if $(V),,@)
@@ -65,9 +64,12 @@ endif
 
 $(foreach f,HOMEURL INST LINK BIN CONFDIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
 
+.PHONY: _check-image _create-image-$(VENDOR) help version init clean clean-all check upgrade list shell run
+.ONESHELL:
+
 help:
 	@echo ""
-	echo "Usage: $(PROG) [ help$(foreach x,init clean check upgrade list shell run, | $(x)) ]"
+	echo "Usage: $(PROG) [ help$(foreach x,version init clean check upgrade list shell run, | $(x)) ]"
 	echo ""
 	echo "The project allows you to manage isolated containers with AI agents."
 	echo ""
@@ -80,16 +82,25 @@ help:
 	echo " run         starts devkit container."
 	echo " clean       deletes all images for the current devkit."
 	echo " clean-all   deletes all devkit images."
+	echo " version     output version information and exit."
 	echo " help        display this help and exit."
 	echo ""
 	echo "Report bugs to authors."
 	echo ""
 
+version:
+	@echo "devkit version $(VERSION)"
+	echo ""
+	echo "Copyright (C) 2026  Alexey Gladkov."
+	echo ""
+	echo "devkit comes with ABSOLUTELY NO WARRANTY. This is free software, and you"
+	echo "are welcome to redistribute it under certain conditions."
+	echo "See the GNU General Public Licence for details."
+
 init:
 	$(Q)if ! $(GIT) config get devkit.name >/dev/null 2>&1; then
 	  $(GIT) config set devkit.name "$(DEVNAME)";
 	  $(GIT) config set devkit.agent "$(AGENT)";
-	  $(GIT) config set devkit.packages "bash";
 	else
 	  echo "Discovered the existing configuration and cowardly refuse to break it." >&2;
 	fi
