@@ -4,7 +4,7 @@
 CURNAME = devkit
 CURFILE = $(lastword $(MAKEFILE_LIST))
 PROG ?= make -f $(CURFILE) --
-VERSION = 0-dev
+VERSION = 1
 
 V = $(VERBOSE)
 Q = $(if $(V),,@)
