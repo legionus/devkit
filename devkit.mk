@@ -65,11 +65,6 @@ endif
 
 $(foreach f,HOMEURL INST LINK BIN CONFDIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
 
-PODMAN_VOLUMES = \
-	$(GITPROJDIR):/srv/$(PROJNAME):rw,Z \
-	$(HOME)/$(CONFDIR):/home/user/$(CONFDIR):rw,Z \
-	$(VOLUMES)
-
 help:
 	@echo ""
 	echo "Usage: $(PROG) [ help$(foreach x,init clean check upgrade list shell run, | $(x)) ]"
@@ -128,8 +123,16 @@ _check-image:
 	[ -z '$(CONFDIR)' ] || mkdir -p -- $(HOME)/$(CONFDIR)
 
 ifneq ($(filter shell,$(MAKECMDGOALS)),)
-PODMAN_ARGS := --entrypoint=$(DEVSHELL)
+PODMAN_ENTRYPOINT := --entrypoint=$(DEVSHELL)
 endif
+
+PODMAN_ENV = \
+	--env=LANG=C.UTF8 \
+	--env=EDITOR=$(EDITOR)
+PODMAN_VOLUMES = \
+	--volume=$(GITPROJDIR):/srv/$(PROJNAME):rw,Z \
+	--volume=$(HOME)/$(CONFDIR):/home/user/$(CONFDIR):rw,Z \
+	$(addprefix --volume=,$(VOLUMES))
 
 run: _check-image
 	$(Q)set --; i=0; while [ $$i -lt $${NARGS:-0} ]; do
@@ -139,16 +142,15 @@ run: _check-image
 	if ! $(PODMAN) container exists '$(AGENT)-for-$(PROJNAME)'; then
 	  $(PODMAN) container run --tty --interactive \
 	    --name '$(AGENT)-for-$(PROJNAME)' \
-	    $(addprefix --volume=,$(PODMAN_VOLUMES)) \
+	    $(PODMAN_ENV) $(PODMAN_VOLUMES) \
 	    --rm --log-driver=none \
 	    --network=host --userns=keep-id \
-	    --env=EDITOR=$(EDITOR) \
 	    --user='$(UID):$(GID)' \
 	    --workdir='/srv/$(PROJNAME)' \
-	    $(PODMAN_ARGS) -- '$(get-image-id)' "$$@" $(ARGS);
+	    $(PODMAN_ENTRYPOINT) -- '$(get-image-id)' "$$@" $(ARGS);
 	else
 	  $(PODMAN) container exec --tty --interactive \
-	    --env=EDITOR=$(EDITOR) \
+	    $(PODMAN_ENV) \
 	    --user='$(if $(ROOT),root,$(UID):$(GID))' \
 	    --workdir='/srv/$(PROJNAME)' \
 	    -- '$(AGENT)-for-$(PROJNAME)' $(DEVSHELL) "$$@" $(ARGS);
