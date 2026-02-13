@@ -101,25 +101,25 @@ init:
 
 _create-image-ubuntu:
 	$(Q)[ -n "$(get-image-id)" ] || printf '%s\n' \
-	  "FROM docker.io/library/ubuntu:latest" \
-	  "USER root" \
+	  'FROM docker.io/library/ubuntu:latest' \
+	  'USER root' \
 	  'ENV PATH=/root/bin:/root/.local/bin:$$PATH' \
 	  'SHELL ["/bin/bash", "-eo", "pipefail", "-c"]' \
-	  'RUN min="`sed -ne 's,^UID_MIN[[:space:]]*,,p' /etc/login.defs`"; getent passwd | while IFS=: read -r name _ uid _; do [ "$$uid" -lt "$$min" ] || userdel -rf "$$name"; done' \
-	  "RUN groupadd -g '$(GID)' user; useradd --uid='$(UID)' --gid='$(GID)' -d /home/user -m user" \
-	  "RUN apt-get -y -q$(if $(Q),qq) update" \
-	  "RUN apt-get -y -q$(if $(Q),qq) --no-install-recommends install $(sort ca-certificates bash vim-tiny curl tar $(DEVPKGS) $(ubuntu.packages.$(INST)))" \
-	  "RUN apt-get -y -q$(if $(Q),qq) clean; rm -rf /var/lib/apt/lists/*" \
+	  'RUN min="`sed -ne "s,^UID_MIN[[:space:]]*,,p" /etc/login.defs`"; getent passwd | while IFS=: read -r name _ uid _; do [ "$$uid" -lt "$$min" ] || userdel -rf "$$name"; done' \
+	  'RUN groupadd -g "$(GID)" user; useradd --uid="$(UID)" --gid="$(GID)" -d /home/user -m user' \
+	  'RUN apt-get -y -q$(if $(Q),qq) update' \
+	  'RUN apt-get -y -q$(if $(Q),qq) --no-install-recommends install $(sort ca-certificates bash vim-tiny curl tar $(DEVPKGS) $(ubuntu.packages.$(INST)))' \
+	  'RUN apt-get -y -q$(if $(Q),qq) clean; rm -rf /var/lib/apt/lists/*' \
 	  'RUN find /root -type d | xargs -r chmod -R g+rx,o+rx' \
-	  "RUN [ '$(INST)' != 'npm' ] || { npm install -g '$(LINK)' --omit=dev;  rm -rf /root/.npm /root/.cache; }" \
-	  "RUN [ '$(INST)' != 'scr' ] || { curl -fsSL '$(LINK)' | bash; }" \
+	  'RUN [ "$(INST)" != npm ] || { npm install -g "$(LINK)" --omit=dev;  rm -rf /root/.npm /root/.cache; }' \
+	  'RUN [ "$(INST)" != scr ] || { curl -fsSL "$(LINK)" | bash; }' \
 	  'SHELL ["/bin/bash", "-eio", "pipefail", "-c"]' \
 	  'RUN bin="`command -v $(BIN)`"; [ "$$bin" = "/usr/local/bin/$(BIN)" ] || ln -vs -- "$$bin" "/usr/local/bin/$(BIN)"' \
-	  "LABEL local.devkit.name=$(DEVNAME)" \
-	  "LABEL local.devkit.hash=$(SHAHASH)" \
-	  "LABEL local.devkit.agent=$(AGENT)" \
-	  "LABEL local.devkit.agent.version=$(call get-github-release,$(HOMEURL))" \
-	  "ENTRYPOINT [\"/usr/local/bin/$(BIN)\"]" |
+	  'LABEL local.devkit.name=$(DEVNAME)' \
+	  'LABEL local.devkit.hash=$(SHAHASH)' \
+	  'LABEL local.devkit.agent=$(AGENT)' \
+	  'LABEL local.devkit.agent.version=$(call get-github-release,$(HOMEURL))' \
+	  'ENTRYPOINT ["/usr/local/bin/$(BIN)"]' |
 	$(PODMAN) image build --squash --force-rm --format=docker --file=- \
 	  --tag="localhost/$(CURNAME)/$(DEVNAME):latest"
 
