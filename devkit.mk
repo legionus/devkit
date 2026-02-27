@@ -42,6 +42,9 @@ EDITOR  = $(shell $(GIT) config get       devkit.editor   || echo $(DEF_EDITOR))
 DEVPKGS = $(shell $(GIT) config get --all devkit.packages)
 VOLUMES = $(shell $(GIT) config get --all devkit.volumes)
 SHAHASH = $(shell echo $(UID):$(GID) $(AGENT) $(VENDOR) $(sort $(DEVPKGS)) | sha256sum | cut -f1 -d\ )
+
+BUILD_CMD = $(shell $(GIT) config get devkit.build-cmd)
+BUILD_VOL = $(shell $(GIT) config get devkit.build-dir)
 endif
 
 get-image-id       = $(shell $(PODMAN) image list --filter label=local.devkit.hash=$(SHAHASH) --format '{{.Id}}')
@@ -121,12 +124,14 @@ _create-image-ubuntu:
 	  'RUN [ "$(INST)" != scr ] || { curl -fsSL "$(LINK)" | bash; }' \
 	  'SHELL ["/bin/bash", "-eio", "pipefail", "-c"]' \
 	  'RUN bin="`command -v $(BIN)`"; [ "$$bin" = "/usr/local/bin/$(BIN)" ] || ln -vs -- "$$bin" "/usr/local/bin/$(BIN)"' \
+	  'RUN [ -z "$(BUILDCMD)" ] || $(BUILDCMD)' \
 	  'LABEL local.devkit.name=$(DEVNAME)' \
 	  'LABEL local.devkit.hash=$(SHAHASH)' \
 	  'LABEL local.devkit.agent=$(AGENT)' \
 	  'LABEL local.devkit.agent.version=$(call get-github-release,$(HOMEURL))' \
 	  'ENTRYPOINT ["/usr/local/bin/$(BIN)"]' |
 	$(PODMAN) image build --layers=false --force-rm --format=docker --file=- \
+	  $(if $(BUILD_VOL),--volume=$(BUILD_VOL):/.host:ro) \
 	  --tag="localhost/$(CURNAME)/$(DEVNAME):latest"
 
 _check-image:

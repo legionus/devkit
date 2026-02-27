@@ -202,6 +202,24 @@ devkit.volumes
 Additional list of podman volumes to mount into the container.
 
 
+devkit.build-cmd
+----------------
+
+An optional command that will be executed after installing the agent when
+creating an podman image for a container.
+
+If you use your custom script in this command, it is your responsibility to make
+it available inside the container.
+
+
+devkit.build-dir
+----------------
+
+The directory that will be mounted in `/.host` at the time the image is created.
+This directory is used as a complement to `devkit.build-cmd` to pass additional
+scripts or data into the build container.
+
+
 Shared profiles via git include
 -------------------------------
 
