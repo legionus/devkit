@@ -45,7 +45,7 @@ SHAHASH = $(shell echo $(UID):$(GID) $(AGENT) $(VENDOR) $(sort $(DEVPKGS)) | sha
 endif
 
 get-image-id       = $(shell $(PODMAN) image list --filter label=local.devkit.hash=$(SHAHASH) --format '{{.Id}}')
-get-github-release = $(shell $(CURL) -fsSL -o /dev/null -w '%{url_effective}' -L '$(1)' | sed -n 's,.*/tag/v\?,,p')
+get-github-release = $(shell $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(HOMEURL)' | sed -n 's,.*/tag/v\?,,p')
 
 ubuntu.packages.npm = npm
 ubuntu.packages.scr = bash curl
@@ -64,7 +64,7 @@ endif
 
 $(foreach f,HOMEURL INST LINK BIN CONFDIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
 
-.PHONY: _check-image _create-image-$(VENDOR) help version init clean clean-all check upgrade list shell run
+.PHONY: _create-image-$(VENDOR) help version init clean clean-all check upgrade list shell run
 .ONESHELL:
 
 help:
@@ -105,7 +105,7 @@ init:
 	  echo "Discovered the existing configuration and cowardly refuse to break it." >&2;
 	fi
 
-_create-image-ubuntu:
+_create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	$(Q)[ -n "$(get-image-id)" ] || printf '%s\n' \
 	  'FROM docker.io/library/ubuntu:latest' \
 	  'USER root' \
@@ -124,55 +124,50 @@ _create-image-ubuntu:
 	  'LABEL local.devkit.name=$(DEVNAME)' \
 	  'LABEL local.devkit.hash=$(SHAHASH)' \
 	  'LABEL local.devkit.agent=$(AGENT)' \
-	  'LABEL local.devkit.agent.version=$(call get-github-release,$(HOMEURL))' \
+	  'LABEL local.devkit.agent.version=$(get-github-release)' \
 	  'ENTRYPOINT ["/usr/local/bin/$(BIN)"]' |
 	$(PODMAN) image build --layers=false --force-rm --format=docker --file=- \
 	  --tag="localhost/$(CURNAME)/$(DEVNAME):latest"
-
-_check-image:
-	$(Q)[ -n "$(get-image-id)" ] || $(MAKE) -f "$(CURFILE)" _create-image-$(VENDOR)
-	[ -z '$(CONFDIR)' ] || mkdir -p -- $(HOME)/$(CONFDIR)
 
 ifneq ($(filter shell,$(MAKECMDGOALS)),)
 PODMAN_ENTRYPOINT := --entrypoint=$(DEVSHELL)
 endif
 
-PODMAN_ENV = \
+PODMAN_ARGS = \
 	--env=LANG=C.UTF8 \
-	--env=EDITOR=$(EDITOR)
+	--env=EDITOR=$(EDITOR) \
+	--tty --interactive \
+	--workdir='/srv/$(PROJNAME)'
 PODMAN_VOLUMES = \
 	--volume=$(GITPROJDIR):/srv/$(PROJNAME):rw,Z \
 	--volume=$(HOME)/$(CONFDIR):/home/user/$(CONFDIR):rw,Z \
 	$(addprefix --volume=,$(VOLUMES))
 
-run: _check-image
-	$(Q)set --; i=0; while [ $$i -lt $${NARGS:-0} ]; do
+PODMAN_CONTAINER = $(AGENT)-for-$(PROJNAME)
+
+run: _create-image-$(VENDOR)
+	$(Q)set -e --; i=0; while [ $$i -lt $${NARGS:-0} ]; do
 	  eval "a=\"\$${ARG$$i-}\""; set -- "$$@" "$$a";
 	  i=$$(( $$i + 1 ));
 	done
-	if ! $(PODMAN) container exists '$(AGENT)-for-$(PROJNAME)'; then
-	  $(PODMAN) container run --tty --interactive \
-	    --name '$(AGENT)-for-$(PROJNAME)' \
-	    $(PODMAN_ENV) $(PODMAN_VOLUMES) \
-	    --rm --log-driver=none \
-	    --network=host --userns=keep-id \
+	[ -z '$(CONFDIR)' ] || mkdir -p -- $(HOME)/$(CONFDIR)
+	if ! $(PODMAN) container exists '$(PODMAN_CONTAINER)'; then
+	  $(PODMAN) container run $(PODMAN_ARGS) \
+	    --name '$(PODMAN_CONTAINER)' $(PODMAN_VOLUMES) \
+	    --rm --log-driver=none --network=host --userns=keep-id \
 	    --user='$(UID):$(GID)' \
-	    --workdir='/srv/$(PROJNAME)' \
 	    $(PODMAN_ENTRYPOINT) -- '$(get-image-id)' "$$@" $(ARGS);
 	else
-	  $(PODMAN) container exec --tty --interactive \
-	    $(PODMAN_ENV) \
+	  $(PODMAN) container exec $(PODMAN_ARGS) \
 	    --user='$(if $(ROOT),root,$(UID):$(GID))' \
-	    --workdir='/srv/$(PROJNAME)' \
-	    -- '$(AGENT)-for-$(PROJNAME)' $(DEVSHELL) "$$@" $(ARGS);
+	    -- '$(PODMAN_CONTAINER)' $(DEVSHELL) "$$@" $(ARGS);
 	fi
 
 shell: run
-	@:
 
 check:
 	$(Q)image_id="$(get-image-id)";
-	avail_ver="$(call get-github-release,$(HOMEURL))";
+	avail_ver="$(get-github-release)";
 	image_ver="`[ -z "$$image_id" ] || $(PODMAN) image inspect "$$image_id" --format '{{index .Labels "local.devkit.agent.version"}}'`";
 	echo "The $(AGENT) information:";
 	echo " - release home page: $(HOMEURL)";
@@ -186,8 +181,7 @@ clean-all:
 clean:
 	$(Q)$(PODMAN) image list --filter label=local.devkit.name=$(DEVNAME) --format '{{.Id}}' | xargs -r $(PODMAN) image rm
 
-upgrade: clean
-	$(Q)$(MAKE) -f "$(CURFILE)" _create-image-$(VENDOR)
+upgrade: clean _create-image-$(VENDOR)
 
 list:
 	$(Q)$(PODMAN) image list --filter label=local.devkit.name
