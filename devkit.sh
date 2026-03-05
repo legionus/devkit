@@ -6,12 +6,47 @@ scr="$(realpath "$0")"
 cwd="${scr%/*}"
 
 PROG="${scr##*/}"
+workdir=
+
+is_command()
+{
+	case "$1" in
+		clean|clean-all|list|help|version|init|check|upgrade|shell|run)
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
 
 a=
 i="$#"
-while [ "$i" -gt 0 ] && [ "$a" != 'shell' ] && [ "$a" != 'run' ]; do
+while [ "$i" -gt 0 ] && ! is_command "$a"; do
 	a="$1"
-	set -- "$@" "$a"
+	case "$1" in
+		--root)
+			export ROOT=1
+			;;
+		--workdir|--workdir=*)
+			if [ -n "${1##*=*}" ]; then
+				shift
+				i=$(( $i - 1 ))
+
+				workdir="$1"
+			else
+				workdir="${1#*=}"
+			fi
+			;;
+		-h|--help)
+			i=1; set -- - help
+			;;
+		-V|--version)
+			i=1; set -- - version
+			;;
+		*)
+			set -- "$@" "$1"
+			;;
+	esac
 	shift
 	i=$(( $i - 1 ))
 done
@@ -26,4 +61,4 @@ while [ "$i" -gt 0 ]; do
 done
 export PROG NARGS
 
-exec make -f "$cwd/devkit.mk" -- "$@"
+exec make -f "$cwd/devkit.mk" ${workdir:+--directory="$workdir"} -- "$@"

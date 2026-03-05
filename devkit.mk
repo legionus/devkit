@@ -67,9 +67,15 @@ endif # not SIMPLE_GOALS
 
 help:
 	@echo ""
-	echo "Usage: $(PROG) [ $(strip $(subst ||,,|$(addprefix | ,$(PUBLIC_GOALS)))) ]"
+	echo "Usage: $(PROG) [options] [ $(strip $(subst ||,,|$(addprefix | ,$(PUBLIC_GOALS)))) ]"
 	echo ""
 	echo "The project allows you to manage isolated containers with AI agents."
+	echo ""
+	echo "Options:"
+	echo "  --root            connect to the running container as root;"
+	echo "  --workdir=DIR     run the agent in the DIR directory;"
+	echo "  -V, --version     output version information and exit;"
+	echo "  -h, --help        display this help and exit."
 	echo ""
 	echo "Commands:"
 	echo " init        creates the initial configuration in git-config."
