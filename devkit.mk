@@ -9,8 +9,8 @@ VERSION = 1
 V = $(VERBOSE)
 Q = $(if $(V),,@)
 
-SIMPLE_GOALS = clean clean-all list help version
-PUBLIC_GOALS = $(SIMPLE_GOALS) init check upgrade shell run
+SIMPLE_GOALS = help version list clean-all
+PUBLIC_GOALS = $(SIMPLE_GOALS) clean init check upgrade shell run
 
 define require-utility
 $(eval $(1) := $(shell command -v $(2) 2>/dev/null))
