@@ -130,6 +130,8 @@ ubuntu.packages.scr = bash curl
 
 _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	$(Q)image="`$(PODMAN) image list --filter label=local.devkit.hash=$(SHAHASH) --format '{{.Id}}' | head -1`"
+	current="`$(PODMAN) image list --filter 'reference=$(PODMAN_IMAGE)' --format '{{.Id}}' | head -1`"
+	[ -z "$$current" ] || [ "$$current" = "$$image" ] || $(PODMAN) image rm -f '$(PODMAN_IMAGE)'
 	[ -z "$$image" ] || {
 	   $(PODMAN) image tag "$$image" '$(PODMAN_IMAGE)'
 	   exit
