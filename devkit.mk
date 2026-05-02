@@ -20,6 +20,18 @@ $(call require-utility,GIT,git)
 $(call require-utility,PODMAN,podman)
 $(call require-utility,CURL,curl)
 
+GIT_CONFIG_SUBCOMMANDS = $(shell $(GIT) config get --default= devkit.agent >/dev/null 2>&1 && echo yes)
+
+ifeq ($(GIT_CONFIG_SUBCOMMANDS),yes)
+GIT_CONFIG_GET     = $(GIT) config get
+GIT_CONFIG_GET_ALL = $(GIT) config get --all
+GIT_CONFIG_SET     = $(GIT) config set
+else
+GIT_CONFIG_GET     = $(GIT) config --get
+GIT_CONFIG_GET_ALL = $(GIT) config --get-all
+GIT_CONFIG_SET     = $(GIT) config
+endif
+
 AGENT.opencode = HOMEURL=https://github.com/anomalyco/opencode/releases/latest       INST=scr LINK=https://opencode.ai/install   BIN=opencode CONFDIR=.config/opencode
 AGENT.copilot  = HOMEURL=https://github.com/github/copilot-cli/releases/latest       INST=scr LINK=https://gh.io/copilot-install BIN=copilot  CONFDIR=.copilot
 AGENT.claude   = HOMEURL=https://github.com/anthropics/claude-code/releases/latest   INST=scr LINK=https://claude.ai/install.sh  BIN=claude   CONFDIR=.claude
@@ -39,13 +51,13 @@ DEF_DEVSHELL = /bin/bash
 DEF_EDITOR = /usr/bin/editor
 
 VENDOR  = ubuntu
-AGENT   = $(shell $(GIT) config get       devkit.agent    || echo $(DEF_AGENT))
-DEVSHELL= $(shell $(GIT) config get       devkit.shell    || echo $(DEF_DEVSHELL))
-EDITOR  = $(shell $(GIT) config get       devkit.editor   || echo $(DEF_EDITOR))
-DEVPKGS = $(shell $(GIT) config get --all devkit.packages)
-VOLUMES = $(shell $(GIT) config get --all devkit.volumes)
+AGENT   = $(shell $(GIT_CONFIG_GET)     devkit.agent    || echo $(DEF_AGENT))
+DEVSHELL= $(shell $(GIT_CONFIG_GET)     devkit.shell    || echo $(DEF_DEVSHELL))
+EDITOR  = $(shell $(GIT_CONFIG_GET)     devkit.editor   || echo $(DEF_EDITOR))
+DEVPKGS = $(shell $(GIT_CONFIG_GET_ALL) devkit.packages)
+VOLUMES = $(shell $(GIT_CONFIG_GET_ALL) devkit.volumes)
 
-LIMIT_MEMORY = $(shell $(GIT) config get devkit.limit-memory || echo 0)
+LIMIT_MEMORY = $(shell $(GIT_CONFIG_GET) devkit.limit-memory || echo 0)
 
 SHAHASH = $(shell echo $(UID):$(GID) $(AGENT) $(VENDOR) $(sort $(DEVPKGS)) | sha256sum | cut -f1 -d\ )
 
@@ -119,8 +131,8 @@ version:
 	echo "See the GNU General Public Licence for details."
 
 init:
-	$(Q)if ! $(GIT) config get devkit.agent >/dev/null 2>&1; then
-	  $(GIT) config set devkit.agent "$(AGENT)";
+	$(Q)if ! $(GIT_CONFIG_GET) devkit.agent >/dev/null 2>&1; then
+	  $(GIT_CONFIG_SET) devkit.agent "$(AGENT)";
 	else
 	  echo "Discovered the existing configuration and cowardly refuse to break it." >&2;
 	fi
