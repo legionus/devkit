@@ -48,7 +48,6 @@ A profile defines:
 
 - agent type
 - dependency packages
-- logical environment name
 
 Profiles can be shared between repositories using git configuration includes.
 

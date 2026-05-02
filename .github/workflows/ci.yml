@@ -31,7 +31,6 @@ jobs:
           ./devkit.sh init
 
           git config set devkit.agent ${{ matrix.agent }}
-          git config set devkit.name simple
           git config set --append devkit.packages git
           git config set --append devkit.packages jq
 
