@@ -59,7 +59,17 @@ VOLUMES = $(shell $(GIT_CONFIG_GET_ALL) devkit.volumes)
 
 LIMIT_MEMORY = $(shell $(GIT_CONFIG_GET) devkit.limit-memory || echo 0)
 
-SHAHASH = $(shell echo $(UID):$(GID) $(AGENT) $(VENDOR) $(sort $(DEVPKGS)) | sha256sum | cut -f1 -d\ )
+BUILD_COMMAND = $(shell $(GIT_CONFIG_GET)     devkit.build-command)
+BUILD_VOLUMES = $(shell $(GIT_CONFIG_GET_ALL) devkit.build-volumes)
+BUILD_ID      = $(shell $(GIT_CONFIG_GET)     devkit.build-id || echo none)
+
+SHAHASH = $(shell echo \
+	AUTH=$(UID):$(GID) \
+	AGENT=$(AGENT) \
+	VENDOR=$(VENDOR) \
+	BUILD_ID=$(BUILD_ID) \
+	DEVPKGS=$(sort $(DEVPKGS)) \
+	| sha256sum | cut -f1 -d\ )
 
 ifeq ($(strip $(AGENT.$(AGENT))),)
 $(error Unknown devkit.agent '$(AGENT)'. Supported: aider, claude, codex, copilot, gemini, opencode, grok)
@@ -148,7 +158,8 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	   $(PODMAN) image tag "$$image" '$(PODMAN_IMAGE)'
 	   exit
 	}
-	$(PODMAN) image build --layers=false --force-rm --format=docker --file=- --tag="$(PODMAN_IMAGE)" <<-'EOF'
+	$(PODMAN) image build --tag="$(PODMAN_IMAGE)" $(addprefix --volume=,$(BUILD_VOLUMES)) \
+	  --layers=false --force-rm --format=docker --file=- <<-'EOF'
 	  FROM docker.io/library/ubuntu:latest
 	  USER root
 	  ENV PATH=/root/bin:/root/.local/bin:$$PATH
@@ -163,9 +174,11 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  RUN [ "$(INST)" != scr ] || { curl -fsSL "$(LINK)" | bash; }
 	  SHELL ["/bin/bash", "-eio", "pipefail", "-c"]
 	  RUN bin="`command -v $(BIN)`"; [ "$$bin" = "/usr/local/bin/$(BIN)" ] || ln -vs -- "$$bin" "/usr/local/bin/$(BIN)"
+	  RUN :; $(BUILD_COMMAND)
 	  LABEL local.devkit.hash=$(SHAHASH)
 	  LABEL local.devkit.agent=$(AGENT)
 	  LABEL local.devkit.agent.version=$(get-github-release)
+	  LABEL local.devkit.build.id=$(BUILD_ID)
 	  ENTRYPOINT ["/usr/local/bin/$(BIN)"]
 	EOF
 

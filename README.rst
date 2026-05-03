@@ -185,6 +185,47 @@ devkit.volumes
 Additional list of podman volumes to mount into the container.
 
 
+devkit.build-command
+--------------------
+
+Shell fragment executed as root while building the agent image.
+
+This is intended for project-specific image customization that does not fit
+into the package list, such as installing extra tools from a mounted script.
+
+Example::
+
+    git config devkit.build-command /mnt/devkit-hooks/install-tools.sh
+
+
+devkit.build-volumes
+--------------------
+
+Additional list of podman volumes to mount only while building the image.
+
+These volumes are passed to ``podman image build`` and can be used by
+``devkit.build-command``.
+
+Example::
+
+    git config --add devkit.build-volumes /home/me/devkit-hooks:/mnt/devkit-hooks:ro,Z
+
+
+devkit.build-id
+---------------
+
+Identifier for custom build inputs.
+
+This value is part of the image identity and defaults to ``none``. Change it
+when files used by ``devkit.build-command`` change, especially when those
+files come from ``devkit.build-volumes``. devkit cannot detect content changes
+inside arbitrary build volumes automatically.
+
+Example::
+
+    git config devkit.build-id tools-2026-05-03
+
+
 Shared profiles via git include
 -------------------------------
 
