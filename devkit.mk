@@ -174,6 +174,7 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  RUN [ "$(INST)" != scr ] || { curl -fsSL "$(LINK)" | bash; }
 	  SHELL ["/bin/bash", "-eio", "pipefail", "-c"]
 	  RUN bin="`command -v $(BIN)`"; [ "$$bin" = "/usr/local/bin/$(BIN)" ] || ln -vs -- "$$bin" "/usr/local/bin/$(BIN)"
+	  SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 	  RUN :; $(BUILD_COMMAND)
 	  LABEL local.devkit.hash=$(SHAHASH)
 	  LABEL local.devkit.agent=$(AGENT)
