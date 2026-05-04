@@ -54,6 +54,7 @@ VENDOR  = ubuntu
 AGENT   = $(shell $(GIT_CONFIG_GET)     devkit.agent    || echo $(DEF_AGENT))
 DEVSHELL= $(shell $(GIT_CONFIG_GET)     devkit.shell    || echo $(DEF_DEVSHELL))
 EDITOR  = $(shell $(GIT_CONFIG_GET)     devkit.editor   || echo $(DEF_EDITOR))
+HOOKS   = $(shell $(GIT_CONFIG_GET)     devkit.hooks-path)
 DEVPKGS = $(shell $(GIT_CONFIG_GET_ALL) devkit.packages)
 VOLUMES = $(shell $(GIT_CONFIG_GET_ALL) devkit.volumes)
 
@@ -62,6 +63,10 @@ LIMIT_MEMORY = $(shell $(GIT_CONFIG_GET) devkit.limit-memory || echo 0)
 BUILD_COMMAND = $(shell $(GIT_CONFIG_GET)     devkit.build-command)
 BUILD_VOLUMES = $(shell $(GIT_CONFIG_GET_ALL) devkit.build-volumes)
 BUILD_ID      = $(shell $(GIT_CONFIG_GET)     devkit.build-id || echo none)
+
+ifneq ($(wildcard $(HOOKS)),)
+VOLUMES += $(HOOKS):/.devkit/hooks.d:ro
+endif
 
 SHAHASH = $(shell echo \
 	AUTH=$(UID):$(GID) \
@@ -83,7 +88,7 @@ UID := $(shell id -u)
 GID := $(shell id -g)
 
 ifneq ($(filter shell,$(MAKECMDGOALS)),)
-PODMAN_ENTRYPOINT := --entrypoint=$(DEVSHELL)
+PODMAN_ENTRYPOINT := --entrypoint='["/.devkit/entry","$(DEVSHELL)"]'
 endif
 
 PODMAN_ARGS = \
@@ -164,10 +169,16 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  USER root
 	  ENV PATH=/root/bin:/root/.local/bin:$$PATH
 	  SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
+	  RUN mkdir -p -- /.devkit
+	  RUN printf >/.devkit/entry '%s\n' \
+	  '#!/bin/bash -efu' \
+	  '[ ! -d /.devkit/hooks.d ] || run-parts --lsbsysinit --arg=start /.devkit/hooks.d' \
+	  'exec "$$@"'; \
+	  chmod 755 /.devkit/entry
 	  RUN min="`sed -ne 's,^UID_MIN[[:space:]]*,,p' /etc/login.defs`"; getent passwd | while IFS=: read -r name _ uid _; do [ "$$uid" -lt "$$min" ] || userdel -rf "$$name"; done
 	  RUN groupadd -g "$(GID)" user; useradd --uid="$(UID)" --gid="$(GID)" -d /home/user -m user
 	  RUN apt-get -y -q$(if $(Q),qq) update
-	  RUN apt-get -y -q$(if $(Q),qq) --no-install-recommends install $(sort ca-certificates bash vim-tiny curl tar $(DEVPKGS) $(ubuntu.packages.$(INST)))
+	  RUN apt-get -y -q$(if $(Q),qq) --no-install-recommends install $(sort ca-certificates bash vim-tiny curl tar debianutils $(DEVPKGS) $(ubuntu.packages.$(INST)))
 	  RUN apt-get -y -q$(if $(Q),qq) clean; rm -rf /var/lib/apt/lists/*
 	  RUN find /root -type d | xargs -r chmod -R g+rx,o+rx
 	  RUN [ "$(INST)" != npm ] || { npm install -g "$(LINK)" --omit=dev;  rm -rf /root/.npm /root/.cache; }
@@ -180,7 +191,7 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  LABEL local.devkit.agent=$(AGENT)
 	  LABEL local.devkit.agent.version=$(get-github-release)
 	  LABEL local.devkit.build.id=$(BUILD_ID)
-	  ENTRYPOINT ["/usr/local/bin/$(BIN)"]
+	  ENTRYPOINT ["/.devkit/entry","/usr/local/bin/$(BIN)"]
 	EOF
 
 run: _create-image-$(VENDOR)

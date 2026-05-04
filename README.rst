@@ -185,6 +185,27 @@ devkit.volumes
 Additional list of podman volumes to mount into the container.
 
 
+devkit.hooks-path
+-----------------
+
+Path to a directory with container lifecycle hooks.
+
+When the path exists, devkit mounts it read-only as ``/.devkit/hooks.d`` and
+runs the handlers with ``run-parts`` from the container entrypoint before
+starting the agent or development shell. The current lifecycle stage is passed
+as the first argument and is currently always ``start``.
+
+Example::
+
+    git config devkit.hooks-path ~/devkit/hooks.d
+
+Example hook::
+
+    #!/bin/sh
+    [ "$1" = start ] || exit 0
+    echo "container is starting"
+
+
 devkit.build-command
 --------------------
 
