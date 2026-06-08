@@ -83,7 +83,7 @@ endif
 
 $(foreach f,HOMEURL INST LINK BIN CONFDIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
 
-get-github-release = $(shell $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(HOMEURL)' | sed -n 's,.*/tag/v\?,,p')
+get-github-release = $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(HOMEURL)' | sed -n 's,.*/tag/v\?,,p'
 
 UID := $(shell id -u)
 GID := $(shell id -g)
@@ -166,7 +166,13 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	   $(PODMAN) image tag "$$image" '$(PODMAN_IMAGE)'
 	   exit
 	}
-	$(PODMAN) image build --tag="$(PODMAN_IMAGE)" $(addprefix --volume=,$(BUILD_VOLUMES)) \
+	agent_version="`$(get-github-release)`"
+	$(PODMAN) image build --tag="$(PODMAN_IMAGE)" \
+	  --label=local.devkit.agent=$(AGENT) \
+	  --label=local.devkit.agent.version="$$agent_version" \
+	  --label=local.devkit.build.id=$(BUILD_ID) \
+	  --label=local.devkit.hash=$(SHAHASH) \
+	  $(addprefix --volume=,$(BUILD_VOLUMES)) \
 	  --layers=false --force-rm --format=docker --file=- <<-'EOF'
 	  FROM docker.io/library/ubuntu:latest
 	  USER root
@@ -190,10 +196,6 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  RUN bin="`command -v $(BIN)`"; [ "$$bin" = "/usr/local/bin/$(BIN)" ] || ln -vs -- "$$bin" "/usr/local/bin/$(BIN)"
 	  SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 	  RUN :; $(BUILD_COMMAND)
-	  LABEL local.devkit.hash=$(SHAHASH)
-	  LABEL local.devkit.agent=$(AGENT)
-	  LABEL local.devkit.agent.version=$(get-github-release)
-	  LABEL local.devkit.build.id=$(BUILD_ID)
 	  ENTRYPOINT ["/.devkit/entry","/usr/local/bin/$(BIN)"]
 	EOF
 
@@ -219,7 +221,7 @@ shell: run
 
 check:
 	$(Q)set -e --;
-	avail_ver="$(get-github-release)";
+	avail_ver="`$(get-github-release)`";
 	image_ver="`$(PODMAN) image list --filter 'reference=$(PODMAN_IMAGE)' --format '{{index .Labels "local.devkit.agent.version"}}'`";
 	echo "The $(AGENT) information:";
 	echo " - release home page: $(HOMEURL)";
