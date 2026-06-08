@@ -103,7 +103,7 @@ PODMAN_VOLUMES = \
 	$(addprefix --volume=,$(VOLUMES))
 
 PODMAN_CONTAINER = $(AGENT)-for-$(PROJNAME)
-PODMAN_IMAGE = localhost/devkit/$(PROJNAME):latest
+PODMAN_IMAGE = localhost/devkit/$(PROJNAME):$(AGENT)
 
 endif # not SIMPLE_GOALS
 
@@ -118,6 +118,7 @@ help:
 	echo ""
 	echo "Options:"
 	echo "  --root            connect to the running container as root;"
+	echo "  --agent=AGENT     use a different agent;"
 	echo "  --workdir=DIR     run the agent in the DIR directory;"
 	echo "  -V, --version     output version information and exit;"
 	echo "  -h, --help        display this help and exit."

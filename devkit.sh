@@ -7,6 +7,7 @@ cwd="${scr%/*}"
 
 PROG="${scr##*/}"
 workdir=
+agent=
 
 is_command()
 {
@@ -19,6 +20,23 @@ is_command()
 	esac
 }
 
+set_option()
+{
+	local _name _value
+	prev_i="$i"
+
+	_name="$1"; shift
+
+	if [ -n "${1##*=*}" ]; then
+		i=$(( $i - 1 ))
+		shift
+		_value="$1"
+	else
+		_value="${1#*=}"
+	fi
+	eval "$_name=\"\$_value\""
+}
+
 a=
 i="$#"
 while [ "$i" -gt 0 ] && ! is_command "$a"; do
@@ -27,15 +45,13 @@ while [ "$i" -gt 0 ] && ! is_command "$a"; do
 		--root)
 			export ROOT=1
 			;;
+		--agent|--agent=*)
+			set_option agent "$@"
+			[ "$prev_i" = "$i" ] || shift
+			;;
 		--workdir|--workdir=*)
-			if [ -n "${1##*=*}" ]; then
-				shift
-				i=$(( $i - 1 ))
-
-				workdir="$1"
-			else
-				workdir="${1#*=}"
-			fi
+			set_option workdir "$@"
+			[ "$prev_i" = "$i" ] || shift
 			;;
 		-h|--help)
 			i=1; set -- - help
@@ -60,5 +76,8 @@ while [ "$i" -gt 0 ]; do
 	i=$(( $i - 1 ))
 done
 export PROG NARGS
+
+[ -z "$agent" ] ||
+	set -- "$@" "AGENT=$agent"
 
 exec make -f "$cwd/devkit.mk" ${workdir:+--directory="$workdir"} -- "$@"
