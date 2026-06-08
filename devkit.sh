@@ -53,6 +53,9 @@ while [ "$i" -gt 0 ] && ! is_command "$a"; do
 			set_option workdir "$@"
 			[ "$prev_i" = "$i" ] || shift
 			;;
+		-v|--verbose)
+			export VERBOSE=1
+			;;
 		-h|--help)
 			i=1; set -- - help
 			;;
