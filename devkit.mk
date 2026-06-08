@@ -148,6 +148,16 @@ version:
 	echo "are welcome to redistribute it under certain conditions."
 	echo "See the GNU General Public Licence for details."
 
+check:
+	$(Q)set -e --;
+	avail_ver="`$(get-github-release)`";
+	image_ver="`$(PODMAN) image list --filter 'reference=$(PODMAN_IMAGE)' --format '{{index .Labels "local.devkit.agent.version"}}'`";
+	echo "The $(AGENT) information:";
+	echo " - release home page: $(HOMEURL)";
+	echo " -  config directory: ~/$(CONFDIR)";
+	echo " - available version: $${avail_ver:-*unavailable*}";
+	echo " -   current version: $${image_ver:-*unknown*}";
+
 init:
 	$(Q)if ! $(GIT_CONFIG_GET) devkit.agent >/dev/null 2>&1; then
 	  $(GIT_CONFIG_SET) devkit.agent "$(AGENT)";
@@ -218,16 +228,6 @@ run: _create-image-$(VENDOR)
 	fi
 
 shell: run
-
-check:
-	$(Q)set -e --;
-	avail_ver="`$(get-github-release)`";
-	image_ver="`$(PODMAN) image list --filter 'reference=$(PODMAN_IMAGE)' --format '{{index .Labels "local.devkit.agent.version"}}'`";
-	echo "The $(AGENT) information:";
-	echo " - release home page: $(HOMEURL)";
-	echo " -  config directory: ~/$(CONFDIR)";
-	echo " - available version: $${avail_ver:-*unavailable*}";
-	echo " -   current version: $${image_ver:-*unknown*}";
 
 clean-all:
 	$(Q)$(PODMAN) image list --format '{{.Id}}' --filter 'label=local.devkit.agent'  | xargs -r $(PODMAN) image rm -f
