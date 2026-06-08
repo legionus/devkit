@@ -3,7 +3,7 @@
 
 CURFILE = $(lastword $(MAKEFILE_LIST))
 PROG ?= make -f $(CURFILE) --
-VERSION = 2
+VERSION = 3
 
 V = $(VERBOSE)
 Q = $(if $(V),,@)
