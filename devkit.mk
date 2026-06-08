@@ -131,7 +131,7 @@ help:
 	echo " upgrade     upgrades podman image for current devkit."
 	echo " shell       run shell inside devkit container."
 	echo " run         starts devkit container."
-	echo " clean       deletes all images for the current devkit."
+	echo " clean       deletes the image for the current agent."
 	echo " clean-all   deletes all devkit images."
 	echo " version     output version information and exit."
 	echo " help        display this help and exit."
