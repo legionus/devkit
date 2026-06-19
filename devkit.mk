@@ -79,7 +79,7 @@ SHAHASH = $(shell echo \
 	| sha256sum | cut -f1 -d\ )
 
 ifeq ($(strip $(AGENT.$(AGENT))),)
-$(error Unknown devkit.agent '$(AGENT)'. Supported: aider, claude, codex, copilot, gemini, opencode, grok, vibe)
+$(error Unknown devkit.agent '$(AGENT)'. Supported: $(sort $(patsubst AGENT.%,%,$(filter AGENT.%,$(.VARIABLES)))))
 endif
 
 $(foreach f,HOMEURL INST LINK BIN CONFDIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
