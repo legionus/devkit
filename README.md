@@ -143,6 +143,7 @@ Supported agents:
 - [opencode](https://opencode.ai)
 - [grok (unofficial)](https://grokcli.io)
 - [vibe](https://docs.mistral.ai/mistral-vibe/terminal)
+- [kimi](https://moonshotai.github.io/kimi-code/en/)
 
 See [Documentation/Parameters.md](Documentation/Parameters.md) for the full
 list of supported `devkit.*` parameters. These parameters are read from the

@@ -39,7 +39,8 @@ AGENT.aider    = HOMEURL=https://github.com/Aider-AI/aider/releases/latest      
 AGENT.gemini   = HOMEURL=https://github.com/google-gemini/gemini-cli/releases/latest INST=npm LINK=@google/gemini-cli                 BIN=gemini   CONFDIR=.gemini
 AGENT.codex    = HOMEURL=https://github.com/openai/codex/releases/latest             INST=npm LINK=@openai/codex                      BIN=codex    CONFDIR=.codex
 AGENT.grok     = HOMEURL=https://github.com/superagent-ai/grok-cli/releases/latest   INST=npm LINK=@vibe-kit/grok-cli                 BIN=grok     CONFDIR=.grok
-AGENT.vibe     = HOMEURL=https://github.com/mistralai/mistral-vibe/releases          INST=scr LINK=https://mistral.ai/vibe/install.sh BIN=vibe     CONFDIR=.vibe
+AGENT.vibe     = HOMEURL=https://github.com/mistralai/mistral-vibe/releases/latest   INST=scr LINK=https://mistral.ai/vibe/install.sh BIN=vibe     CONFDIR=.vibe
+AGENT.kimi     = HOMEURL=https://github.com/MoonshotAI/kimi-code/releases/latest     INST=npm LINK=@moonshot-ai/kimi-code@latest      BIN=kimi     CONFDIR=.kimi-code
 
 ifeq ($(filter $(SIMPLE_GOALS),$(MAKECMDGOALS)),) # not SIMPLE_GOALS
 GITPROJDIR = $(shell $(GIT) rev-parse --show-toplevel 2>/dev/null)
