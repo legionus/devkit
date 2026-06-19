@@ -37,9 +37,9 @@ jobs:
 
       - name: "Check"
         run: |
-          ./devkit.sh shell -c "stat /usr/local/bin/${{ matrix.agent }}"    </dev/tty60
-          ./devkit.sh shell -c "test -x /usr/local/bin/${{ matrix.agent }}" </dev/tty60
-          ./devkit.sh shell -c "command -v jq"                              </dev/tty60
+          ./devkit.sh exec stat /usr/local/bin/${{ matrix.agent }}    </dev/tty60
+          ./devkit.sh exec test -x /usr/local/bin/${{ matrix.agent }} </dev/tty60
+          ./devkit.sh shell -c "command -v jq"                        </dev/tty60
 
       - name: "Version"
         run: |

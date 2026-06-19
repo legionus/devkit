@@ -9,7 +9,7 @@ V = $(VERBOSE)
 Q = $(if $(V),,@)
 
 SIMPLE_GOALS = help version list clean-all
-PUBLIC_GOALS = $(SIMPLE_GOALS) clean init check upgrade shell run
+PUBLIC_GOALS = $(SIMPLE_GOALS) clean init check upgrade exec shell run
 
 define require-utility
 $(eval $(1) := $(shell command -v $(2) 2>/dev/null))
@@ -93,10 +93,16 @@ ifneq ($(filter shell,$(MAKECMDGOALS)),)
 PODMAN_ENTRYPOINT := --entrypoint='["/.devkit/entry","$(DEVSHELL)"]'
 endif
 
+ifneq ($(filter exec,$(MAKECMDGOALS)),)
+PODMAN_ENTRYPOINT := --entrypoint='["/.devkit/entry"]'
+DEVSHELL :=
+endif
+
 PODMAN_ARGS = \
 	--env=LANG=C.UTF8 \
 	--env=EDITOR=$(EDITOR) \
 	--tty --interactive \
+	--user='$(if $(ROOT),root,$(UID):$(GID))' \
 	--workdir='/srv/$(PROJNAME)'
 PODMAN_VOLUMES = \
 	--volume=$(GITPROJDIR):/srv/$(PROJNAME):rw,Z \
@@ -114,6 +120,8 @@ endif # not SIMPLE_GOALS
 help:
 	@echo ""
 	echo "Usage: $(PROG) [options] [ $(strip $(subst ||,,|$(addprefix | ,$(PUBLIC_GOALS)))) ]"
+	echo "   or: $(PROG) [options] shell [-c '<command> ...']"
+	echo "   or: $(PROG) [options] exec <command> [args ...]"
 	echo ""
 	echo "The project allows you to manage isolated containers with AI agents."
 	echo ""
@@ -130,6 +138,7 @@ help:
 	echo " list        shows all devkit known images."
 	echo " check       shows current and available agent versions."
 	echo " upgrade     upgrades podman image for current devkit."
+	echo " exec        run shell command inside devkit container."
 	echo " shell       run shell inside devkit container."
 	echo " run         starts devkit container."
 	echo " clean       deletes the image for the current agent."
@@ -220,15 +229,15 @@ run: _create-image-$(VENDOR)
 	  $(PODMAN) container run $(PODMAN_ARGS) \
 	    --name '$(PODMAN_CONTAINER)' $(PODMAN_VOLUMES) \
 	    --rm --log-driver=none --network=host --userns=keep-id --memory=$(LIMIT_MEMORY) \
-	    --user='$(UID):$(GID)' \
 	    $(PODMAN_ENTRYPOINT) -- '$(PODMAN_IMAGE)' "$$@" $(ARGS);
 	else
 	  $(PODMAN) container exec $(PODMAN_ARGS) \
-	    --user='$(if $(ROOT),root,$(UID):$(GID))' \
 	    -- '$(PODMAN_CONTAINER)' $(DEVSHELL) "$$@" $(ARGS);
 	fi
 
 shell: run
+
+exec: run
 
 clean-all:
 	$(Q)$(PODMAN) image list --format '{{.Id}}' --filter 'label=local.devkit.agent'  | xargs -r $(PODMAN) image rm -f

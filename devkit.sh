@@ -12,7 +12,7 @@ agent=
 is_command()
 {
 	case "$1" in
-		clean|clean-all|list|help|version|init|check|upgrade|shell|run)
+		clean|clean-all|list|help|version|init|check|upgrade|exec|shell|run)
 			;;
 		*)
 			return 1
