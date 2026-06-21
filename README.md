@@ -111,6 +111,28 @@ Remove all devkit images:
 $ devkit.sh clean-all
 ```
 
+### Optional Sashiko review service
+
+Sashiko is an agentic Linux kernel code review system. It uses
+Linux-kernel-specific prompts and a dedicated protocol to review proposed
+kernel changes. It can ingest patches from mailing lists or a local git
+repository.
+
+Enable it for a repository:
+
+```
+$ git config devkit.sashiko true
+```
+
+Start the service and open its CLI:
+
+```
+$ devkit.sh sashiko
+```
+
+`devkit.sh sashiko-daemon` starts the review daemon, `devkit.sh sashiko-kill`
+stops it, and `devkit.sh sashiko-logs` shows its logs.
+
 ## Configuration
 
 All configuration is stored in `git-config`.

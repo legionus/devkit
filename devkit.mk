@@ -9,7 +9,8 @@ V = $(VERBOSE)
 Q = $(if $(V),,@)
 
 SIMPLE_GOALS = help version list clean-all
-PUBLIC_GOALS = $(SIMPLE_GOALS) clean init check upgrade exec shell run
+SASHIKO_GOALS = sashiko sashiko-daemon sashiko-kill sashiko-logs
+PUBLIC_GOALS = $(SIMPLE_GOALS) $(SASHIKO_GOALS) clean init check upgrade exec shell run
 
 define require-utility
 $(eval $(1) := $(shell command -v $(2) 2>/dev/null))
@@ -45,17 +46,15 @@ AGENT.kimi     = HOMEURL=https://github.com/MoonshotAI/kimi-code/releases/latest
 ifeq ($(filter $(SIMPLE_GOALS),$(MAKECMDGOALS)),) # not SIMPLE_GOALS
 GITPROJDIR = $(shell $(GIT) rev-parse --show-toplevel 2>/dev/null)
 PROJNAME   = $(notdir $(GITPROJDIR))
+WORKDIR    = /srv/$(PROJNAME)
 
 $(if $(PROJNAME),,$(error Unable to locate the git repository))
 
-DEF_AGENT = copilot
-DEF_DEVSHELL = /bin/bash
-DEF_EDITOR = /usr/bin/editor
-
 VENDOR  = ubuntu
-AGENT   = $(shell $(GIT_CONFIG_GET)     devkit.agent    || echo $(DEF_AGENT))
-DEVSHELL= $(shell $(GIT_CONFIG_GET)     devkit.shell    || echo $(DEF_DEVSHELL))
-EDITOR  = $(shell $(GIT_CONFIG_GET)     devkit.editor   || echo $(DEF_EDITOR))
+AGENT   = $(shell $(GIT_CONFIG_GET)     devkit.agent    || echo copilot)
+DEVSHELL= $(shell $(GIT_CONFIG_GET)     devkit.shell    || echo /bin/bash)
+EDITOR  = $(shell $(GIT_CONFIG_GET)     devkit.editor   || echo /usr/bin/editor)
+SASHIKO = $(shell $(GIT_CONFIG_GET)     devkit.sashiko  || echo false)
 HOOKS   = $(shell $(GIT_CONFIG_GET)     devkit.hooks-path)
 DEVPKGS = $(shell $(GIT_CONFIG_GET_ALL) devkit.packages)
 VOLUMES = $(shell $(GIT_CONFIG_GET_ALL) devkit.volumes)
@@ -66,11 +65,31 @@ BUILD_COMMAND = $(shell $(GIT_CONFIG_GET)     devkit.build-command)
 BUILD_VOLUMES = $(shell $(GIT_CONFIG_GET_ALL) devkit.build-volumes)
 BUILD_ID      = $(shell $(GIT_CONFIG_GET)     devkit.build-id || echo none)
 
+SASHIKO_ENABLED = $(filter true yes on 1,$(SASHIKO))
+
+ifneq ($(SASHIKO_ENABLED),)
+SASHIKO_PROVIDER = $(shell $(GIT_CONFIG_GET) devkit.sashiko-provider || echo $(AGENT)-cli)
+SASHIKO_MODEL    = $(shell $(GIT_CONFIG_GET) devkit.sashiko-model    || echo use-own-agent-model)
+
+SASHIKO_HOME = .local/share/sashiko
+
+DEVPKGS += cargo
+VOLUMES += $(HOME)/$(SASHIKO_HOME):/home/user/$(SASHIKO_HOME):rw,Z
+
+ifneq ($(filter sashiko-daemon,$(MAKECMDGOALS)),)
+WORKDIR = /home/user/$(SASHIKO_HOME)
+endif
+
+SASHIKO.codex  = --dangerously-bypass-approvals-and-sandbox
+SASHIKO.claude = --dangerously-skip-permissions
+endif
+
 SHAHASH = $(shell echo \
 	AUTH=$(UID):$(GID) \
 	AGENT=$(AGENT) \
 	VENDOR=$(VENDOR) \
 	BUILD_ID=$(BUILD_ID) \
+	SASHIKO=$(SASHIKO_ENABLED) \
 	DEVPKGS=$(sort $(DEVPKGS)) \
 	| sha256sum | cut -f1 -d\ )
 
@@ -107,18 +126,21 @@ PODMAN_ARGS = \
 	--env=EDITOR=$(EDITOR) \
 	--tty --interactive \
 	--user='$(if $(ROOT),root,$(UID):$(GID))' \
-	--workdir='/srv/$(PROJNAME)'
+	--workdir='$(WORKDIR)'
+PODMAN_RUNTIME_ARGS = $(PODMAN_ARGS) \
+	--rm --network=host --userns=keep-id --memory=$(LIMIT_MEMORY)
 PODMAN_VOLUMES = \
 	--volume=$(GITPROJDIR):/srv/$(PROJNAME):rw,Z \
 	--volume=$(HOME)/$(CONFDIR):/home/user/$(CONFDIR):rw,Z \
 	$(addprefix --volume=,$(VOLUMES))
 
 PODMAN_CONTAINER = $(AGENT)-for-$(PROJNAME)
+SASHIKO_CONTAINER = $(PODMAN_CONTAINER)-sashiko
 PODMAN_IMAGE = localhost/devkit/$(PROJNAME):$(AGENT)
 
 endif # not SIMPLE_GOALS
 
-.PHONY: _create-image-ubuntu $(PUBLIC_GOALS)
+.PHONY: _create-image-ubuntu _create_local_dirs $(PUBLIC_GOALS)
 .ONESHELL:
 
 help:
@@ -138,17 +160,21 @@ help:
 	echo "  -h, --help        display this help and exit."
 	echo ""
 	echo "Commands:"
-	echo " init        creates the initial configuration in git-config."
-	echo " list        shows all devkit known images."
-	echo " check       shows current and available agent versions."
-	echo " upgrade     upgrades podman image for current devkit."
-	echo " exec        run shell command inside devkit container."
-	echo " shell       run shell inside devkit container."
-	echo " run         starts devkit container."
-	echo " clean       deletes the image for the current agent."
-	echo " clean-all   deletes all devkit images."
-	echo " version     output version information and exit."
-	echo " help        display this help and exit."
+	echo " init            creates the initial configuration in git-config."
+	echo " list            shows all devkit known images."
+	echo " check           shows current and available agent versions."
+	echo " upgrade         upgrades podman image for current devkit."
+	echo " exec            run shell command inside devkit container."
+	echo " shell           run shell inside devkit container."
+	echo " run             starts devkit container."
+	echo " sashiko         start Sashiko if needed and open its CLI."
+	echo " sashiko-daemon  start the Sashiko review daemon."
+	echo " sashiko-kill    stop the Sashiko review daemon."
+	echo " sashiko-logs    show logs from the Sashiko review daemon."
+	echo " clean           deletes the image for the current agent."
+	echo " clean-all       deletes all devkit images."
+	echo " version         output version information and exit."
+	echo " help            display this help and exit."
 	echo ""
 	echo "Report bugs to authors."
 	echo ""
@@ -179,6 +205,11 @@ init:
 	  echo "Discovered the existing configuration and cowardly refuse to break it." >&2;
 	fi
 
+_create_local_dirs:
+	$(Q)set -e --;
+	[ -z '$(CONFDIR)' ] || mkdir -p -- $(HOME)/$(CONFDIR)
+	[ -z '$(DATADIR)' ] || mkdir -p -- $(HOME)/$(DATADIR)
+
 ubuntu.packages.npm = npm
 ubuntu.packages.scr = bash curl
 
@@ -200,7 +231,8 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  --layers=false --force-rm --format=docker --file=- <<-'EOF'
 	  FROM docker.io/library/ubuntu:latest
 	  USER root
-	  ENV PATH=/root/bin:/root/.local/bin:$$PATH
+	  ENV DEBIAN_FRONTEND=noninteractive
+	  ENV PATH=/home/user/$(SASHIKO_HOME)/bin:/home/user/bin:/home/user/.local/bin:/root/bin:/root/.local/bin:$$PATH
 	  SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 	  RUN mkdir -p -- /.devkit
 	  RUN printf >/.devkit/entry '%s\n' \
@@ -216,8 +248,9 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  RUN apt-get -y -q$(if $(Q),qq) --no-install-recommends install $(sort ca-certificates bash vim-tiny curl tar debianutils $(DEVPKGS) $(ubuntu.packages.$(INST)))
 	  RUN apt-get -y -q$(if $(Q),qq) clean; rm -rf /var/lib/apt/lists/*
 	  RUN find /root -type d | xargs -r chmod -R g+rx,o+rx
-	  RUN [ "$(INST)" != npm ] || { npm install -g "$(LINK)" --omit=dev;  rm -rf /root/.npm /root/.cache; }
-	  RUN [ "$(INST)" != scr ] || { curl -fsSL "$(LINK)" | bash; }
+	  RUN :;$(if $(filter npm,$(INST)), npm install -g "$(LINK)" --omit=dev && rm -rf /root/.npm /root/.cache)
+	  RUN :;$(if $(filter scr,$(INST)), curl -fsSL "$(LINK)" | bash)
+	  RUN :;$(if $(SASHIKO_ENABLED), cargo install --root / sashiko)
 	  SHELL ["/bin/bash", "-eio", "pipefail", "-c"]
 	  RUN bin="`command -v $(BIN)`"; [ "$$bin" = "/usr/local/bin/$(BIN)" ] || ln -vs -- "$$bin" "/usr/local/bin/$(BIN)"
 	  SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
@@ -225,17 +258,13 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  ENTRYPOINT ["/.devkit/entry","/usr/local/bin/$(BIN)"]
 	EOF
 
-run: _create-image-$(VENDOR)
-	$(Q)set -e --; i=0; while [ $$i -lt $${NARGS:-0} ]; do
-	  eval "a=\"\$${ARG$$i-}\""; set -- "$$@" "$$a";
-	  i=$$(( $$i + 1 ));
-	done
-	[ -z '$(CONFDIR)' ] || mkdir -p -- $(HOME)/$(CONFDIR)
-	[ -z '$(DATADIR)' ] || mkdir -p -- $(HOME)/$(DATADIR)
+PASSTHRU_SHELL_ARGS = i=0; while [ $$i -lt $${NARGS:-0} ]; do eval "a=\"\$${ARG$$i-}\""; set -- "$$@" "$$a"; i=$$(($$i+1)); done
+
+run: _create_local_dirs _create-image-$(VENDOR)
+	$(Q)set -e --; $(PASSTHRU_SHELL_ARGS);
 	if ! $(PODMAN) container exists '$(PODMAN_CONTAINER)'; then
-	  $(PODMAN) container run $(PODMAN_ARGS) \
-	    --name '$(PODMAN_CONTAINER)' $(PODMAN_VOLUMES) \
-	    --rm --log-driver=none --network=host --userns=keep-id --memory=$(LIMIT_MEMORY) \
+	  $(PODMAN) container run $(PODMAN_RUNTIME_ARGS) $(PODMAN_VOLUMES) \
+	    --name '$(PODMAN_CONTAINER)' --log-driver=none \
 	    $(PODMAN_ENTRYPOINT) -- '$(PODMAN_IMAGE)' "$$@" $(ARGS);
 	else
 	  $(PODMAN) container exec $(PODMAN_ARGS) \
@@ -256,3 +285,86 @@ upgrade: clean _create-image-$(VENDOR)
 
 list:
 	$(Q)$(PODMAN) image list --filter label=local.devkit.agent
+
+ifneq ($(SASHIKO_ENABLED),)
+$(HOME)/$(SASHIKO_HOME):
+	$(Q)mkdir -p -- \
+	  $(HOME)/$(SASHIKO_HOME)/bin \
+	  $(HOME)/$(SASHIKO_HOME)/worktries
+
+$(HOME)/$(SASHIKO_HOME)/Settings.toml: $(HOME)/$(SASHIKO_HOME)
+	$(Q)cat > "$@" <<-'EOF'
+	  database.token = ""
+	  database.url = "/home/user/$(SASHIKO_HOME)/devkit.db"
+	  mailing_lists.track = ""
+	  nntp.port = 119
+	  nntp.server = "nntp.lore.kernel.org"
+	  review.concurrency = 20
+	  review.worktree_dir = "/home/user/$(SASHIKO_HOME)/worktries"
+	  server.host = "::"
+	  server.port = 8080
+	  server.read_only = false
+	EOF
+
+$(HOME)/$(SASHIKO_HOME)/bin/devkit-agent: $(HOME)/$(SASHIKO_HOME)
+	$(Q)cat > "$@" <<-'EOF'
+	  #!/bin/bash -efu
+	  if [ -n "$${SASHIKO__GIT__REPOSITORY_PATH-}" ]; then
+	    . "/home/user/$(SASHIKO_HOME)/$${0##*/}.env";
+	    args=(); i=0;
+	    for a in "$$@"; do
+	      case "$$a" in
+	        (*="use-own-agent-model")                              ;;
+	        ("use-own-agent-model") i=$$(($$i-1)); unset args[$$i] ;;
+	        (*) args[$$i]="$$a"; i=$$(($$i+1))                     ;;
+	      esac;
+	    done;
+	    set -- "$${args[@]}" $${ARGS-}
+	  fi;
+	  exec "/usr/local/bin/$${0##*/}" "$$@"
+	EOF
+	chmod 755 -- "$@"
+
+$(HOME)/$(SASHIKO_HOME)/bin/$(BIN): $(HOME)/$(SASHIKO_HOME)/bin/devkit-agent
+	$(Q)ln -sf -- devkit-agent "$@"
+
+$(HOME)/$(SASHIKO_HOME)/$(BIN).env: $(CURFILE)
+	$(Q)cat > $(HOME)/$(SASHIKO_HOME)/$(BIN).env <<-'EOF'
+	  ARGS='$(SASHIKO.$(AGENT))'
+	EOF
+
+sashiko-daemon: _create_local_dirs _create-image-$(VENDOR) $(HOME)/$(SASHIKO_HOME)/Settings.toml $(HOME)/$(SASHIKO_HOME)/bin/$(BIN) $(HOME)/$(SASHIKO_HOME)/$(BIN).env
+	$(Q)set -e --; $(PASSTHRU_SHELL_ARGS);
+	$(PODMAN) container run $(PODMAN_RUNTIME_ARGS) $(PODMAN_VOLUMES) $(if $(SASHIKO_BACKGROUND),--detach) \
+	  --name '$(SASHIKO_CONTAINER)' \
+	  --env=SASHIKO__AI__PROVIDER='$(SASHIKO_PROVIDER)' \
+	  --env=SASHIKO__AI__MODEL='$(SASHIKO_MODEL)' \
+	  --env=SASHIKO__GIT__REPOSITORY_PATH='/srv/$(PROJNAME)' \
+	  --entrypoint='["/.devkit/entry","sashiko"]' -- '$(PODMAN_IMAGE)' "$$@" $(ARGS);
+
+sashiko-kill:
+	$(Q)set -e --;
+	! $(PODMAN) container exists '$(SASHIKO_CONTAINER)' ||
+	  $(PODMAN) container kill '$(SASHIKO_CONTAINER)'
+
+sashiko-logs:
+	$(Q)set -e --; $(PASSTHRU_SHELL_ARGS);
+	$(PODMAN) container logs '$(SASHIKO_CONTAINER)' "$$@" $(ARGS);
+
+sashiko:
+	$(Q)set -e --; $(PASSTHRU_SHELL_ARGS);
+	$(PODMAN) container exists '$(SASHIKO_CONTAINER)' ||
+	   $(MAKE) --no-print-directory -f $(CURFILE) sashiko-daemon NARGS=0 SASHIKO_BACKGROUND=1
+	$(PODMAN) container exec $(PODMAN_ARGS) -- '$(SASHIKO_CONTAINER)' sashiko-cli "$$@" $(ARGS);
+else
+.PHONY: _sashiko-disabled
+
+_sashiko-disabled:
+	@echo "devkit: sashiko support is not enabled in git-config."
+	echo  "devkit: run \`git config set devkit.sashiko true' to enable it."
+
+sashiko-daemon: _sashiko-disabled
+sashiko-kill:   _sashiko-disabled
+sashiko-logs:   _sashiko-disabled
+sashiko:        _sashiko-disabled
+endif

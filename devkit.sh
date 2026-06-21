@@ -14,6 +14,8 @@ is_command()
 	case "$1" in
 		clean|clean-all|list|help|version|init|check|upgrade|exec|shell|run)
 			;;
+		sashiko|sashiko-daemon|sashiko-kill|sashiko-logs)
+			;;
 		*)
 			return 1
 			;;
