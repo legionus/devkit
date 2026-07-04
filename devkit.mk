@@ -33,6 +33,7 @@ GIT_CONFIG_GET_ALL = $(GIT) config --get-all
 GIT_CONFIG_SET     = $(GIT) config
 endif
 
+AGENT.dummy    = HOMEURL=                                                            INST=    LINK=                                   BIN=dummy    CONFDIR=                 DATADIR=
 AGENT.opencode = HOMEURL=https://github.com/anomalyco/opencode/releases/latest       INST=scr LINK=https://opencode.ai/install        BIN=opencode CONFDIR=.config/opencode DATADIR=.local/share/opencode
 AGENT.copilot  = HOMEURL=https://github.com/github/copilot-cli/releases/latest       INST=scr LINK=https://gh.io/copilot-install      BIN=copilot  CONFDIR=.copilot         DATADIR=
 AGENT.claude   = HOMEURL=https://github.com/anthropics/claude-code/releases/latest   INST=scr LINK=https://claude.ai/install.sh       BIN=claude   CONFDIR=.claude          DATADIR=
@@ -99,7 +100,11 @@ endif
 
 $(foreach f,HOMEURL INST LINK BIN CONFDIR DATADIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
 
+ifdef HOMEURL
 get-github-release = $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(HOMEURL)' | sed -n 's,.*/tag/v\?,,p'
+else
+get-github-release = printf '0'
+endif
 
 UID := $(shell id -u)
 GID := $(shell id -g)
@@ -117,6 +122,10 @@ ifneq ($(wildcard $(HOOKS)),)
 VOLUMES += $(HOOKS):/.devkit/hooks.d:ro
 endif
 
+ifneq ($(CONFDIR),)
+VOLUMES += $(HOME)/$(CONFDIR):/home/user/$(CONFDIR):rw,Z
+endif
+
 ifneq ($(DATADIR),)
 VOLUMES += $(HOME)/$(DATADIR):/home/user/$(DATADIR):rw,Z
 endif
@@ -131,7 +140,6 @@ PODMAN_RUNTIME_ARGS = $(PODMAN_ARGS) \
 	--rm --network=host --userns=keep-id --memory=$(LIMIT_MEMORY)
 PODMAN_VOLUMES = \
 	--volume=$(GITPROJDIR):/srv/$(PROJNAME):rw,Z \
-	--volume=$(HOME)/$(CONFDIR):/home/user/$(CONFDIR):rw,Z \
 	$(addprefix --volume=,$(VOLUMES))
 
 PODMAN_CONTAINER = $(AGENT)-for-$(PROJNAME)
@@ -190,6 +198,7 @@ version:
 
 check:
 	$(Q)set -e --;
+ifneq ($(AGENT),dummy)
 	avail_ver="`$(get-github-release)`";
 	image_ver="`$(PODMAN) image list --filter 'reference=$(PODMAN_IMAGE)' --format '{{index .Labels "local.devkit.agent.version"}}'`";
 	echo "The $(AGENT) information:";
@@ -197,6 +206,9 @@ check:
 	echo " -  config directory: ~/$(CONFDIR)";
 	echo " - available version: $${avail_ver:-*unavailable*}";
 	echo " -   current version: $${image_ver:-*unknown*}";
+else
+	echo "dummy agent"
+endif
 
 init:
 	$(Q)if ! $(GIT_CONFIG_GET) devkit.agent >/dev/null 2>&1; then
@@ -250,6 +262,7 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  RUN find /root -type d | xargs -r chmod -R g+rx,o+rx
 	  RUN :;$(if $(filter npm,$(INST)), npm install -g "$(LINK)" --omit=dev && rm -rf /root/.npm /root/.cache)
 	  RUN :;$(if $(filter scr,$(INST)), curl -fsSL "$(LINK)" | bash)
+	  RUN :;$(if $(filter dummy,$(BIN)), mkdir -p "$$HOME/bin" && printf "#!/bin/sh -efu\n\nprintf 'dummy client\n'" > "$$HOME/bin/dummy" && chmod +x "$$HOME/bin/dummy")
 	  RUN :;$(if $(SASHIKO_ENABLED), cargo install --root / sashiko)
 	  SHELL ["/bin/bash", "-eio", "pipefail", "-c"]
 	  RUN bin="`command -v $(BIN)`"; [ "$$bin" = "/usr/local/bin/$(BIN)" ] || ln -vs -- "$$bin" "/usr/local/bin/$(BIN)"

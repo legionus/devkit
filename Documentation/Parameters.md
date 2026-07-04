@@ -22,6 +22,8 @@ Example:
 git config devkit.agent codex
 ```
 
+You can also set it as `dummy` for no agent.
+
 ## devkit.shell
 
 This variable allows you to override the shell that will be used in the
