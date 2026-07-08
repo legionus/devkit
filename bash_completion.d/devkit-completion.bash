@@ -6,8 +6,8 @@ _devkit()
 	local cur prev words cword
 	_init_completion -n : || return
 
-	local commands="clean clean-all list help version init check upgrade shell run"
-	local opts="--root --workdir= --workdir -h --help -V --version"
+	local commands="clean clean-all list help version init check upgrade shell run exec sashiko sashiko-daemon sashiko-kill sashiko-logs"
+	local opts="--root --agent= --agent --workdir= --workdir -h --help -V --version"
 
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD-1]}"
