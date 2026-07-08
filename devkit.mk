@@ -33,6 +33,7 @@ GIT_CONFIG_GET_ALL = $(GIT) config --get-all
 GIT_CONFIG_SET     = $(GIT) config
 endif
 
+AGENT.dummy    = HOMEURL=                                                            INST=    LINK=                                   BIN=bash     CONFDIR=                 DATADIR=
 AGENT.opencode = HOMEURL=https://github.com/anomalyco/opencode/releases/latest       INST=scr LINK=https://opencode.ai/install        BIN=opencode CONFDIR=.config/opencode DATADIR=.local/share/opencode
 AGENT.copilot  = HOMEURL=https://github.com/github/copilot-cli/releases/latest       INST=scr LINK=https://gh.io/copilot-install      BIN=copilot  CONFDIR=.copilot         DATADIR=
 AGENT.claude   = HOMEURL=https://github.com/anthropics/claude-code/releases/latest   INST=scr LINK=https://claude.ai/install.sh       BIN=claude   CONFDIR=.claude          DATADIR=
@@ -51,7 +52,7 @@ WORKDIR    = /srv/$(PROJNAME)
 $(if $(PROJNAME),,$(error Unable to locate the git repository))
 
 VENDOR  = ubuntu
-AGENT   = $(shell $(GIT_CONFIG_GET)     devkit.agent    || echo copilot)
+AGENT   = $(shell $(GIT_CONFIG_GET)     devkit.agent    || echo dummy)
 DEVSHELL= $(shell $(GIT_CONFIG_GET)     devkit.shell    || echo /bin/bash)
 EDITOR  = $(shell $(GIT_CONFIG_GET)     devkit.editor   || echo /usr/bin/editor)
 SASHIKO = $(shell $(GIT_CONFIG_GET)     devkit.sashiko  || echo false)
@@ -65,7 +66,9 @@ BUILD_COMMAND = $(shell $(GIT_CONFIG_GET)     devkit.build-command)
 BUILD_VOLUMES = $(shell $(GIT_CONFIG_GET_ALL) devkit.build-volumes)
 BUILD_ID      = $(shell $(GIT_CONFIG_GET)     devkit.build-id || echo none)
 
+ifneq ($(AGENT),dummy)
 SASHIKO_ENABLED = $(filter true yes on 1,$(SASHIKO))
+endif
 
 ifneq ($(SASHIKO_ENABLED),)
 SASHIKO_PROVIDER = $(shell $(GIT_CONFIG_GET) devkit.sashiko-provider || echo $(AGENT)-cli)
@@ -99,7 +102,11 @@ endif
 
 $(foreach f,HOMEURL INST LINK BIN CONFDIR DATADIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
 
+ifneq ($(AGENT),dummy)
 get-github-release = $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(HOMEURL)' | sed -n 's,.*/tag/v\?,,p'
+else
+get-github-release = echo $(AGENT)
+endif
 
 UID := $(shell id -u)
 GID := $(shell id -g)
@@ -121,6 +128,10 @@ ifneq ($(DATADIR),)
 VOLUMES += $(HOME)/$(DATADIR):/home/user/$(DATADIR):rw,Z
 endif
 
+ifneq ($(CONFDIR),)
+VOLUMES += $(HOME)/$(CONFDIR):/home/user/$(CONFDIR):rw,Z
+endif
+
 PODMAN_ARGS = \
 	--env=LANG=C.UTF8 \
 	--env=EDITOR=$(EDITOR) \
@@ -131,7 +142,6 @@ PODMAN_RUNTIME_ARGS = $(PODMAN_ARGS) \
 	--rm --network=host --userns=keep-id --memory=$(LIMIT_MEMORY)
 PODMAN_VOLUMES = \
 	--volume=$(GITPROJDIR):/srv/$(PROJNAME):rw,Z \
-	--volume=$(HOME)/$(CONFDIR):/home/user/$(CONFDIR):rw,Z \
 	$(addprefix --volume=,$(VOLUMES))
 
 PODMAN_CONTAINER = $(AGENT)-for-$(PROJNAME)
@@ -140,7 +150,7 @@ PODMAN_IMAGE = localhost/devkit/$(PROJNAME):$(AGENT)
 
 endif # not SIMPLE_GOALS
 
-.PHONY: _create-image-ubuntu _create_local_dirs $(PUBLIC_GOALS)
+.PHONY: _create-image-ubuntu _create_local_dirs _check-version _check-none $(PUBLIC_GOALS)
 .ONESHELL:
 
 help:
@@ -188,7 +198,7 @@ version:
 	echo "are welcome to redistribute it under certain conditions."
 	echo "See the GNU General Public Licence for details."
 
-check:
+_check-version:
 	$(Q)set -e --;
 	avail_ver="`$(get-github-release)`";
 	image_ver="`$(PODMAN) image list --filter 'reference=$(PODMAN_IMAGE)' --format '{{index .Labels "local.devkit.agent.version"}}'`";
@@ -197,6 +207,12 @@ check:
 	echo " -  config directory: ~/$(CONFDIR)";
 	echo " - available version: $${avail_ver:-*unavailable*}";
 	echo " -   current version: $${image_ver:-*unknown*}";
+
+_check-dummy:
+	$(Q)set -e --;
+	echo "This is a project container without any AI agents."
+
+check: _check-$(if $(HOMEURL),version,dummy)
 
 init:
 	$(Q)if ! $(GIT_CONFIG_GET) devkit.agent >/dev/null 2>&1; then
