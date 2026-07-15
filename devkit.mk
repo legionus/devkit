@@ -44,6 +44,8 @@ AGENT.grok     = HOMEURL=https://github.com/superagent-ai/grok-cli/releases/late
 AGENT.vibe     = HOMEURL=https://github.com/mistralai/mistral-vibe/releases/latest   INST=scr LINK=https://mistral.ai/vibe/install.sh BIN=vibe     CONFDIR=.vibe            DATADIR=
 AGENT.kimi     = HOMEURL=https://github.com/MoonshotAI/kimi-code/releases/latest     INST=npm LINK=@moonshot-ai/kimi-code@latest      BIN=kimi     CONFDIR=.kimi-code       DATADIR=
 
+AGENT.aider.CONFFILES = .aider.conf.yml .aider.model.metadata.json .aider.model.settings.yml
+
 ifeq ($(filter $(SIMPLE_GOALS),$(MAKECMDGOALS)),) # not SIMPLE_GOALS
 GITPROJDIR = $(shell $(GIT) rev-parse --show-toplevel 2>/dev/null)
 PROJNAME   = $(notdir $(GITPROJDIR))
@@ -101,6 +103,7 @@ $(error Unknown devkit.agent '$(AGENT)'. Supported: $(sort $(patsubst AGENT.%,%,
 endif
 
 $(foreach f,HOMEURL INST LINK BIN CONFDIR DATADIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
+CONFFILES = $(AGENT.$(AGENT).CONFFILES)
 
 ifneq ($(AGENT),dummy)
 get-github-release = $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(HOMEURL)' | sed -n 's,.*/tag/v\?,,p'
@@ -131,6 +134,9 @@ endif
 ifneq ($(CONFDIR),)
 VOLUMES += $(HOME)/$(CONFDIR):/home/user/$(CONFDIR):rw,Z
 endif
+
+CONFFILE_OPTIONS = rw,Z
+VOLUMES += $(foreach f,$(CONFFILES),$(if $(wildcard $(HOME)/$(f)),$(HOME)/$(f):/home/user/$(f):$(CONFFILE_OPTIONS)))
 
 PODMAN_ARGS = \
 	--env=LANG=C.UTF8 \
