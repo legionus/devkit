@@ -44,6 +44,18 @@ git config --add devkit.packages gdb
 
 Additional list of podman volumes to mount into the container.
 
+## devkit.env-file
+
+Additional list of podman-compatible environment files to pass into the
+container at runtime.
+
+Example:
+
+```sh
+git config --add devkit.env-file .env
+git config --add devkit.env-file .env.local
+```
+
 ## devkit.hooks-path
 
 Path to a directory with container lifecycle hooks.

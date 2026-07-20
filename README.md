@@ -150,6 +150,7 @@ Example of configuration:
 [devkit]
 	agent = codex
 	editor = /usr/bin/vim
+	env-file = .env
 	packages = git ripgrep
 	packages = build-essential bc flex bison libelf-dev binutils-dev
 	packages = libncurses-dev

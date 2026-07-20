@@ -61,6 +61,7 @@ SASHIKO = $(shell $(GIT_CONFIG_GET)     devkit.sashiko  || echo false)
 HOOKS   = $(shell $(GIT_CONFIG_GET)     devkit.hooks-path)
 DEVPKGS = $(shell $(GIT_CONFIG_GET_ALL) devkit.packages)
 VOLUMES = $(shell $(GIT_CONFIG_GET_ALL) devkit.volumes)
+ENVFILES = $(shell $(GIT_CONFIG_GET_ALL) devkit.env-file)
 
 LIMIT_MEMORY = $(shell $(GIT_CONFIG_GET) devkit.limit-memory || echo 0)
 
@@ -104,6 +105,7 @@ endif
 
 $(foreach f,HOMEURL INST LINK BIN CONFDIR DATADIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
 CONFFILES = $(AGENT.$(AGENT).CONFFILES)
+PODMAN_ENV_FILES = $(foreach f,$(ENVFILES),--env-file='$(f)')
 
 ifneq ($(AGENT),dummy)
 get-github-release = $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(HOMEURL)' | sed -n 's,.*/tag/v\?,,p'
@@ -145,6 +147,7 @@ PODMAN_ARGS = \
 	--user='$(if $(ROOT),root,$(UID):$(GID))' \
 	--workdir='$(WORKDIR)'
 PODMAN_RUNTIME_ARGS = $(PODMAN_ARGS) \
+	$(PODMAN_ENV_FILES) \
 	--rm --network=host --userns=keep-id --memory=$(LIMIT_MEMORY)
 PODMAN_VOLUMES = \
 	--volume=$(GITPROJDIR):/srv/$(PROJNAME):rw,Z \
