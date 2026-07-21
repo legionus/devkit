@@ -53,14 +53,14 @@ WORKDIR    = /srv/$(PROJNAME)
 
 $(if $(PROJNAME),,$(error Unable to locate the git repository))
 
-VENDOR  = ubuntu
-AGENT   = $(shell $(GIT_CONFIG_GET)     devkit.agent    || echo dummy)
-DEVSHELL= $(shell $(GIT_CONFIG_GET)     devkit.shell    || echo /bin/bash)
-EDITOR  = $(shell $(GIT_CONFIG_GET)     devkit.editor   || echo /usr/bin/editor)
-SASHIKO = $(shell $(GIT_CONFIG_GET)     devkit.sashiko  || echo false)
-HOOKS   = $(shell $(GIT_CONFIG_GET)     devkit.hooks-path)
-DEVPKGS = $(shell $(GIT_CONFIG_GET_ALL) devkit.packages)
-VOLUMES = $(shell $(GIT_CONFIG_GET_ALL) devkit.volumes)
+VENDOR   = ubuntu
+AGENT    = $(shell $(GIT_CONFIG_GET)     devkit.agent    || echo dummy)
+DEVSHELL = $(shell $(GIT_CONFIG_GET)     devkit.shell    || echo /bin/bash)
+EDITOR   = $(shell $(GIT_CONFIG_GET)     devkit.editor   || echo /usr/bin/editor)
+SASHIKO  = $(shell $(GIT_CONFIG_GET)     devkit.sashiko  || echo false)
+HOOKS    = $(shell $(GIT_CONFIG_GET)     devkit.hooks-path)
+DEVPKGS  = $(shell $(GIT_CONFIG_GET_ALL) devkit.packages)
+VOLUMES  = $(shell $(GIT_CONFIG_GET_ALL) devkit.volumes)
 ENVFILES = $(shell $(GIT_CONFIG_GET_ALL) devkit.env-file)
 
 LIMIT_MEMORY = $(shell $(GIT_CONFIG_GET) devkit.limit-memory || echo 0)
@@ -104,8 +104,6 @@ $(error Unknown devkit.agent '$(AGENT)'. Supported: $(sort $(patsubst AGENT.%,%,
 endif
 
 $(foreach f,HOMEURL INST LINK BIN CONFDIR DATADIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
-CONFFILES = $(AGENT.$(AGENT).CONFFILES)
-PODMAN_ENV_FILES = $(foreach f,$(ENVFILES),--env-file='$(f)')
 
 ifneq ($(AGENT),dummy)
 get-github-release = $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(HOMEURL)' | sed -n 's,.*/tag/v\?,,p'
@@ -137,6 +135,7 @@ ifneq ($(CONFDIR),)
 VOLUMES += $(HOME)/$(CONFDIR):/home/user/$(CONFDIR):rw,Z
 endif
 
+CONFFILES = $(AGENT.$(AGENT).CONFFILES)
 CONFFILE_OPTIONS = rw,Z
 VOLUMES += $(foreach f,$(CONFFILES),$(if $(wildcard $(HOME)/$(f)),$(HOME)/$(f):/home/user/$(f):$(CONFFILE_OPTIONS)))
 
@@ -147,7 +146,7 @@ PODMAN_ARGS = \
 	--user='$(if $(ROOT),root,$(UID):$(GID))' \
 	--workdir='$(WORKDIR)'
 PODMAN_RUNTIME_ARGS = $(PODMAN_ARGS) \
-	$(PODMAN_ENV_FILES) \
+	$(addprefix --env-file=,$(ENVFILES)) \
 	--rm --network=host --userns=keep-id --memory=$(LIMIT_MEMORY)
 PODMAN_VOLUMES = \
 	--volume=$(GITPROJDIR):/srv/$(PROJNAME):rw,Z \
