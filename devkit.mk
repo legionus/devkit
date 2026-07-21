@@ -33,18 +33,21 @@ GIT_CONFIG_GET_ALL = $(GIT) config --get-all
 GIT_CONFIG_SET     = $(GIT) config
 endif
 
-AGENT.dummy    = HOMEURL=                                                            INST=    LINK=                                   BIN=bash     CONFDIR=                 DATADIR=
-AGENT.opencode = HOMEURL=https://github.com/anomalyco/opencode/releases/latest       INST=scr LINK=https://opencode.ai/install        BIN=opencode CONFDIR=.config/opencode DATADIR=.local/share/opencode
-AGENT.copilot  = HOMEURL=https://github.com/github/copilot-cli/releases/latest       INST=scr LINK=https://gh.io/copilot-install      BIN=copilot  CONFDIR=.copilot         DATADIR=
-AGENT.claude   = HOMEURL=https://github.com/anthropics/claude-code/releases/latest   INST=scr LINK=https://claude.ai/install.sh       BIN=claude   CONFDIR=.claude          DATADIR=
-AGENT.aider    = HOMEURL=https://github.com/Aider-AI/aider/releases/latest           INST=scr LINK=https://aider.chat/install.sh      BIN=aider    CONFDIR=.aider           DATADIR=
-AGENT.gemini   = HOMEURL=https://github.com/google-gemini/gemini-cli/releases/latest INST=npm LINK=@google/gemini-cli                 BIN=gemini   CONFDIR=.gemini          DATADIR=
-AGENT.codex    = HOMEURL=https://github.com/openai/codex/releases/latest             INST=npm LINK=@openai/codex                      BIN=codex    CONFDIR=.codex           DATADIR=
-AGENT.grok     = HOMEURL=https://github.com/superagent-ai/grok-cli/releases/latest   INST=npm LINK=@vibe-kit/grok-cli                 BIN=grok     CONFDIR=.grok            DATADIR=
-AGENT.vibe     = HOMEURL=https://github.com/mistralai/mistral-vibe/releases/latest   INST=scr LINK=https://mistral.ai/vibe/install.sh BIN=vibe     CONFDIR=.vibe            DATADIR=
-AGENT.kimi     = HOMEURL=https://github.com/MoonshotAI/kimi-code/releases/latest     INST=npm LINK=@moonshot-ai/kimi-code@latest      BIN=kimi     CONFDIR=.kimi-code       DATADIR=
+AGENT.dummy    = HOMEURL=                                                            INST=    LINK=                                   BIN=bash     CONFDIR=                 DATADIR=                         SCR_ENV=
+AGENT.opencode = HOMEURL=https://github.com/anomalyco/opencode/releases/latest       INST=scr LINK=https://opencode.ai/install        BIN=opencode CONFDIR=.config/opencode DATADIR=.local/share/opencode    SCR_ENV=
+AGENT.copilot  = HOMEURL=https://github.com/github/copilot-cli/releases/latest       INST=scr LINK=https://gh.io/copilot-install      BIN=copilot  CONFDIR=.copilot         DATADIR=                         SCR_ENV=
+AGENT.claude   = HOMEURL=https://github.com/anthropics/claude-code/releases/latest   INST=scr LINK=https://claude.ai/install.sh       BIN=claude   CONFDIR=.claude          DATADIR=                         SCR_ENV=
+AGENT.aider    = HOMEURL=https://github.com/Aider-AI/aider/releases/latest           INST=scr LINK=https://aider.chat/install.sh      BIN=aider    CONFDIR=.aider           DATADIR=                         SCR_ENV=
+AGENT.gemini   = HOMEURL=https://github.com/google-gemini/gemini-cli/releases/latest INST=npm LINK=@google/gemini-cli                 BIN=gemini   CONFDIR=.gemini          DATADIR=                         SCR_ENV=
+AGENT.codex    = HOMEURL=https://github.com/openai/codex/releases/latest             INST=npm LINK=@openai/codex                      BIN=codex    CONFDIR=.codex           DATADIR=                         SCR_ENV=
+AGENT.grok     = HOMEURL=https://github.com/superagent-ai/grok-cli/releases/latest   INST=npm LINK=@vibe-kit/grok-cli                 BIN=grok     CONFDIR=.grok            DATADIR=                         SCR_ENV=
+AGENT.vibe     = HOMEURL=https://github.com/mistralai/mistral-vibe/releases/latest   INST=scr LINK=https://mistral.ai/vibe/install.sh BIN=vibe     CONFDIR=.vibe            DATADIR=                         SCR_ENV=
+AGENT.kimi     = HOMEURL=https://github.com/MoonshotAI/kimi-code/releases/latest     INST=npm LINK=@moonshot-ai/kimi-code@latest      BIN=kimi     CONFDIR=.kimi-code       DATADIR=                         SCR_ENV=
+AGENT.goose    = HOMEURL=https://github.com/aaif-goose/goose/releases/latest         INST=scr LINK=https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh BIN=goose CONFDIR=.config/goose DATADIR=.local/share/goose SCR_ENV=CONFIGURE=false
 
 AGENT.aider.CONFFILES = .aider.conf.yml .aider.model.metadata.json .aider.model.settings.yml
+# bzip2 is needed to install goose
+AGENT.goose.PACKAGES = bzip2
 
 ifeq ($(filter $(SIMPLE_GOALS),$(MAKECMDGOALS)),) # not SIMPLE_GOALS
 GITPROJDIR = $(shell $(GIT) rev-parse --show-toplevel 2>/dev/null)
@@ -103,7 +106,7 @@ ifeq ($(strip $(AGENT.$(AGENT))),)
 $(error Unknown devkit.agent '$(AGENT)'. Supported: $(sort $(patsubst AGENT.%,%,$(filter AGENT.%,$(.VARIABLES)))))
 endif
 
-$(foreach f,HOMEURL INST LINK BIN CONFDIR DATADIR,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
+$(foreach f,HOMEURL INST LINK BIN CONFDIR DATADIR SCR_ENV,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
 
 ifneq ($(AGENT),dummy)
 get-github-release = $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(HOMEURL)' | sed -n 's,.*/tag/v\?,,p'
@@ -269,11 +272,11 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  RUN mkdir -p -- /home/user/.config /home/user/.local/{bin,lib,state,share}
 	  RUN chown -R '$(UID):$(GID)' /home/user
 	  RUN apt-get -y -q$(if $(Q),qq) update
-	  RUN apt-get -y -q$(if $(Q),qq) --no-install-recommends install $(sort ca-certificates bash vim-tiny curl tar debianutils $(DEVPKGS) $(ubuntu.packages.$(INST)))
+	  RUN apt-get -y -q$(if $(Q),qq) --no-install-recommends install $(sort ca-certificates bash vim-tiny curl tar debianutils $(DEVPKGS) $(AGENT.$(AGENT).PACKAGES) $(ubuntu.packages.$(INST)))
 	  RUN apt-get -y -q$(if $(Q),qq) clean; rm -rf /var/lib/apt/lists/*
 	  RUN find /root -type d | xargs -r chmod -R g+rx,o+rx
 	  RUN :;$(if $(filter npm,$(INST)), npm install -g "$(LINK)" --omit=dev && rm -rf /root/.npm /root/.cache)
-	  RUN :;$(if $(filter scr,$(INST)), curl -fsSL "$(LINK)" | bash)
+	  RUN :;$(if $(filter scr,$(INST)), curl -fsSL "$(LINK)" | $(SCR_ENV) bash)
 	  RUN :;$(if $(SASHIKO_ENABLED), cargo install --root / sashiko)
 	  SHELL ["/bin/bash", "-eio", "pipefail", "-c"]
 	  RUN bin="`command -v $(BIN)`"; [ "$$bin" = "/usr/local/bin/$(BIN)" ] || ln -vs -- "$$bin" "/usr/local/bin/$(BIN)"

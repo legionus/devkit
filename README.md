@@ -163,6 +163,7 @@ Supported agents:
 - [codex](https://github.com/openai/codex)
 - [copilot](https://github.com/github/copilot-cli)
 - [gemini](https://geminicli.com)
+- [goose](https://github.com/aaif-goose/goose)
 - [opencode](https://opencode.ai)
 - [grok (unofficial)](https://grokcli.io)
 - [vibe](https://docs.mistral.ai/mistral-vibe/terminal)
