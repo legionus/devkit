@@ -38,6 +38,7 @@ AGENT.opencode = HOMEURL=https://github.com/anomalyco/opencode/releases/latest  
 AGENT.copilot  = HOMEURL=https://github.com/github/copilot-cli/releases/latest       INST=scr LINK=https://gh.io/copilot-install      BIN=copilot  CONFDIR=.copilot         DATADIR=                         SCR_ENV=
 AGENT.claude   = HOMEURL=https://github.com/anthropics/claude-code/releases/latest   INST=scr LINK=https://claude.ai/install.sh       BIN=claude   CONFDIR=.claude          DATADIR=                         SCR_ENV=
 AGENT.aider    = HOMEURL=https://github.com/Aider-AI/aider/releases/latest           INST=scr LINK=https://aider.chat/install.sh      BIN=aider    CONFDIR=.aider           DATADIR=                         SCR_ENV=
+AGENT.cecli    = HOMEURL=https://github.com/cecli-dev/cecli/releases/latest          INST=scr LINK=https://cecli.dev/install.sh       BIN=cecli    CONFDIR=.cecli           DATADIR=                         SCR_ENV=
 AGENT.gemini   = HOMEURL=https://github.com/google-gemini/gemini-cli/releases/latest INST=npm LINK=@google/gemini-cli                 BIN=gemini   CONFDIR=.gemini          DATADIR=                         SCR_ENV=
 AGENT.codex    = HOMEURL=https://github.com/openai/codex/releases/latest             INST=npm LINK=@openai/codex                      BIN=codex    CONFDIR=.codex           DATADIR=                         SCR_ENV=
 AGENT.grok     = HOMEURL=https://github.com/superagent-ai/grok-cli/releases/latest   INST=npm LINK=@vibe-kit/grok-cli                 BIN=grok     CONFDIR=.grok            DATADIR=                         SCR_ENV=
@@ -46,6 +47,7 @@ AGENT.kimi     = HOMEURL=https://github.com/MoonshotAI/kimi-code/releases/latest
 AGENT.goose    = HOMEURL=https://github.com/aaif-goose/goose/releases/latest         INST=scr LINK=https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh BIN=goose CONFDIR=.config/goose DATADIR=.local/share/goose SCR_ENV=CONFIGURE=false
 
 AGENT.aider.CONFFILES = .aider.conf.yml .aider.model.metadata.json .aider.model.settings.yml
+AGENT.cecli.CONFFILES = .cecli.conf.yml .cecli.model.metadata.json .cecli.model.settings.yml .cecli.model.overrides.yml
 # bzip2 is needed to install goose
 AGENT.goose.PACKAGES = bzip2
 
