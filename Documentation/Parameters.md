@@ -66,6 +66,11 @@ git config --add devkit.env-file .env
 git config --add devkit.env-file .env.local
 ```
 
+## devkit.caps
+
+A list of capabilities to be added or removed. Caps beginning with `+` will be
+added, and those beginning with `-` will be removed.
+
 ## devkit.hooks-path
 
 Path to a directory with container lifecycle hooks.

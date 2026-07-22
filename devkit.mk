@@ -49,6 +49,7 @@ HOOKS    = $(shell $(GIT_CONFIG_GET)     devkit.hooks-path)
 DEVPKGS  = $(shell $(GIT_CONFIG_GET_ALL) devkit.packages)
 VOLUMES  = $(shell $(GIT_CONFIG_GET_ALL) devkit.volumes)
 ENVFILES = $(shell $(GIT_CONFIG_GET_ALL) devkit.env-file)
+CAPS     = $(shell $(GIT_CONFIG_GET_ALL) devkit.caps)
 
 LIMIT_MEMORY = $(shell $(GIT_CONFIG_GET) devkit.limit-memory || echo 0)
 
@@ -137,6 +138,8 @@ PODMAN_ARGS = \
 	--workdir='$(WORKDIR)'
 PODMAN_RUNTIME_ARGS = $(PODMAN_ARGS) \
 	$(addprefix --env-file=,$(ENVFILES)) \
+	$(addprefix --cap-del=,$(patsubst -%,%,$(filter -%,$(CAPS)))) \
+	$(addprefix --cap-add=,$(patsubst +%,%,$(filter +%,$(CAPS)))) \
 	--rm --network=host --userns=keep-id --memory=$(LIMIT_MEMORY)
 PODMAN_VOLUMES = \
 	--volume=$(GITPROJDIR):/srv/$(PROJNAME):rw,Z \
