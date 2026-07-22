@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright (C) 2026  Alexey Gladkov <gladkov.alexey@gmail.com>
 
-CURFILE = $(lastword $(MAKEFILE_LIST))
+CURFILE := $(lastword $(MAKEFILE_LIST))
 PROG ?= make -f $(CURFILE) --
 VERSION = 5
 
@@ -32,24 +32,6 @@ GIT_CONFIG_GET     = $(GIT) config --get
 GIT_CONFIG_GET_ALL = $(GIT) config --get-all
 GIT_CONFIG_SET     = $(GIT) config
 endif
-
-AGENT.dummy    = HOMEURL=                                                            INST=    LINK=                                   BIN=bash     CONFDIR=                 DATADIR=                         SCR_ENV=
-AGENT.opencode = HOMEURL=https://github.com/anomalyco/opencode/releases/latest       INST=scr LINK=https://opencode.ai/install        BIN=opencode CONFDIR=.config/opencode DATADIR=.local/share/opencode    SCR_ENV=
-AGENT.copilot  = HOMEURL=https://github.com/github/copilot-cli/releases/latest       INST=scr LINK=https://gh.io/copilot-install      BIN=copilot  CONFDIR=.copilot         DATADIR=                         SCR_ENV=
-AGENT.claude   = HOMEURL=https://github.com/anthropics/claude-code/releases/latest   INST=scr LINK=https://claude.ai/install.sh       BIN=claude   CONFDIR=.claude          DATADIR=                         SCR_ENV=
-AGENT.aider    = HOMEURL=https://github.com/Aider-AI/aider/releases/latest           INST=scr LINK=https://aider.chat/install.sh      BIN=aider    CONFDIR=.aider           DATADIR=                         SCR_ENV=
-AGENT.cecli    = HOMEURL=https://github.com/cecli-dev/cecli/releases/latest          INST=scr LINK=https://cecli.dev/install.sh       BIN=cecli    CONFDIR=.cecli           DATADIR=                         SCR_ENV=
-AGENT.gemini   = HOMEURL=https://github.com/google-gemini/gemini-cli/releases/latest INST=npm LINK=@google/gemini-cli                 BIN=gemini   CONFDIR=.gemini          DATADIR=                         SCR_ENV=
-AGENT.codex    = HOMEURL=https://github.com/openai/codex/releases/latest             INST=npm LINK=@openai/codex                      BIN=codex    CONFDIR=.codex           DATADIR=                         SCR_ENV=
-AGENT.grok     = HOMEURL=https://github.com/superagent-ai/grok-cli/releases/latest   INST=npm LINK=@vibe-kit/grok-cli                 BIN=grok     CONFDIR=.grok            DATADIR=                         SCR_ENV=
-AGENT.vibe     = HOMEURL=https://github.com/mistralai/mistral-vibe/releases/latest   INST=scr LINK=https://mistral.ai/vibe/install.sh BIN=vibe     CONFDIR=.vibe            DATADIR=                         SCR_ENV=
-AGENT.kimi     = HOMEURL=https://github.com/MoonshotAI/kimi-code/releases/latest     INST=npm LINK=@moonshot-ai/kimi-code@latest      BIN=kimi     CONFDIR=.kimi-code       DATADIR=                         SCR_ENV=
-AGENT.goose    = HOMEURL=https://github.com/aaif-goose/goose/releases/latest         INST=scr LINK=https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh BIN=goose CONFDIR=.config/goose DATADIR=.local/share/goose SCR_ENV=CONFIGURE=false
-
-AGENT.aider.CONFFILES = .aider.conf.yml .aider.model.metadata.json .aider.model.settings.yml
-AGENT.cecli.CONFFILES = .cecli.conf.yml .cecli.model.metadata.json .cecli.model.settings.yml .cecli.model.overrides.yml
-# bzip2 is needed to install goose
-AGENT.goose.PACKAGES = bzip2
 
 ifeq ($(filter $(SIMPLE_GOALS),$(MAKECMDGOALS)),) # not SIMPLE_GOALS
 GITPROJDIR = $(shell $(GIT) rev-parse --show-toplevel 2>/dev/null)
@@ -90,9 +72,6 @@ VOLUMES += $(HOME)/$(SASHIKO_HOME):/home/user/$(SASHIKO_HOME):rw,Z
 ifneq ($(filter sashiko-daemon,$(MAKECMDGOALS)),)
 WORKDIR = /home/user/$(SASHIKO_HOME)
 endif
-
-SASHIKO.codex  = --dangerously-bypass-approvals-and-sandbox
-SASHIKO.claude = --dangerously-skip-permissions
 endif
 
 SHAHASH = $(shell echo \
@@ -111,17 +90,17 @@ ifneq ($(filter upgrade,$(MAKECMDGOALS)),)
 PODMAN_BUILD_ARGS += --no-cache --pull=always
 endif
 
-ifeq ($(strip $(AGENT.$(AGENT))),)
-$(error Unknown devkit.agent '$(AGENT)'. Supported: $(sort $(patsubst AGENT.%,%,$(filter AGENT.%,$(.VARIABLES)))))
+AGENTS_DIR = $(dir $(CURFILE))/agents
+AGENT.include = $(AGENTS_DIR)/$(AGENT).mk
+
+ifeq ($(wildcard $(AGENT.include)),)
+known_agents = $(patsubst %.mk,%,$(notdir $(wildcard $(AGENTS_DIR)/*.mk)))
+$(error Unknown devkit.agent '$(AGENT)'. Supported: $(sort $(known_agents)))
 endif
 
-$(foreach f,HOMEURL INST LINK BIN CONFDIR DATADIR SCR_ENV,$(eval $(f)=$(patsubst $(f)=%,%,$(filter $(f)=%,$(AGENT.$(AGENT))))))
-
-ifneq ($(AGENT),dummy)
 get-github-release = $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(HOMEURL)' | sed -n 's,.*/tag/v\?,,p'
-else
-get-github-release = echo $(AGENT)
-endif
+
+include $(dir $(CURFILE))agents/$(AGENT).mk
 
 UID := $(shell id -u)
 GID := $(shell id -g)
@@ -147,7 +126,6 @@ ifneq ($(CONFDIR),)
 VOLUMES += $(HOME)/$(CONFDIR):/home/user/$(CONFDIR):rw,Z
 endif
 
-CONFFILES = $(AGENT.$(AGENT).CONFFILES)
 CONFFILE_OPTIONS = rw,Z
 VOLUMES += $(foreach f,$(CONFFILES),$(if $(wildcard $(HOME)/$(f)),$(HOME)/$(f):/home/user/$(f):$(CONFFILE_OPTIONS)))
 
@@ -251,7 +229,7 @@ ubuntu.packages.npm = npm
 ubuntu.packages.scr = bash curl
 
 COREPKGS    = $(sort $(ubuntu.packages))
-AGENTPKGS   = $(sort $(filter-out $(COREPKGS),$(AGENT.$(AGENT).PACKAGES) $(ubuntu.packages.$(INST))))
+AGENTPKGS   = $(sort $(filter-out $(COREPKGS),$(PACKAGES) $(ubuntu.packages.$(INST))))
 USERPKGS    = $(sort $(filter-out $(COREPKGS) $(AGENTPKGS),$(DEVPKGS)))
 SASHIKOPKGS = $(sort $(filter-out $(COREPKGS) $(USERPKGS) $(AGENTPKGS),$(if $(SASHIKO_ENABLED),cargo)))
 
@@ -382,7 +360,7 @@ $(HOME)/$(SASHIKO_HOME)/bin/$(BIN): $(HOME)/$(SASHIKO_HOME)/bin/devkit-agent
 
 $(HOME)/$(SASHIKO_HOME)/$(BIN).env: $(CURFILE)
 	$(Q)cat > $(HOME)/$(SASHIKO_HOME)/$(BIN).env <<-'EOF'
-	  ARGS='$(SASHIKO.$(AGENT))'
+	  ARGS='$(SASHIKO.agent.options)'
 	EOF
 
 sashiko-daemon: _create_local_dirs _create-image-$(VENDOR) $(HOME)/$(SASHIKO_HOME)/Settings.toml $(HOME)/$(SASHIKO_HOME)/bin/$(BIN) $(HOME)/$(SASHIKO_HOME)/$(BIN).env
