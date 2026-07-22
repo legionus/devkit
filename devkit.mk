@@ -229,6 +229,7 @@ _create_local_dirs:
 
 ubuntu.packages     = ca-certificates bash vim-tiny curl tar debianutils
 ubuntu.packages.npm = npm
+ubuntu.packages.pip = python3-pip
 ubuntu.packages.scr = bash curl
 
 COREPKGS    = $(sort $(ubuntu.packages))
@@ -279,6 +280,7 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  RUN find /root -type d | xargs -r chmod -R g+rx,o+rx
 	  ARG DEVKIT_AGENT_VERSION
 	  $(if $(filter npm,$(INST)),RUN : "$$DEVKIT_AGENT_VERSION"; npm install -g "$(LINK)" --omit=dev && rm -rf /root/.npm /root/.cache)
+	  $(if $(filter pip,$(INST)),RUN : "$$DEVKIT_AGENT_VERSION"; python3 -m pip install $(if $(Q),-q) --no-cache-dir --break-system-packages "$(LINK)")
 	  $(if $(filter scr,$(INST)),RUN : "$$DEVKIT_AGENT_VERSION"; curl -fsSL "$(LINK)" | $(SCR_ENV) bash)
 	  $(if $(USERPKGS),$(call ubuntu-install,$(USERPKGS)))
 	  $(if $(SASHIKOPKGS),$(call ubuntu-install,$(SASHIKOPKGS)))

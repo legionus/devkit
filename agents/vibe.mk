@@ -1,6 +1,6 @@
 HOMEURL = https://github.com/mistralai/mistral-vibe/releases/latest
-INST    = scr
-LINK    = https://mistral.ai/vibe/install.sh
+INST    = pip
+LINK    = mistral-vibe
 BIN     = vibe
 CONFDIR = .vibe
 DATADIR =

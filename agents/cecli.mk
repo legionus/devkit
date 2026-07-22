@@ -1,6 +1,6 @@
 HOMEURL = https://github.com/cecli-dev/cecli/releases/latest
-INST    = scr
-LINK    = https://cecli.dev/install.sh
+INST    = pip
+LINK    = cecli-dev
 BIN     = cecli
 CONFDIR = .cecli
 DATADIR =

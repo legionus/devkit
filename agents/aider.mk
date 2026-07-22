@@ -1,6 +1,6 @@
 HOMEURL = https://github.com/Aider-AI/aider/releases/latest
-INST    = scr
-LINK    = https://aider.chat/install.sh
+INST    = pip
+LINK    = aider-chat
 BIN     = aider
 CONFDIR = .aider
 DATADIR =
