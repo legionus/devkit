@@ -3,7 +3,7 @@
 
 CURFILE = $(lastword $(MAKEFILE_LIST))
 PROG ?= make -f $(CURFILE) --
-VERSION = 4
+VERSION = 5
 
 V = $(VERBOSE)
 Q = $(if $(V),,@)
@@ -73,6 +73,7 @@ LIMIT_MEMORY = $(shell $(GIT_CONFIG_GET) devkit.limit-memory || echo 0)
 BUILD_COMMAND = $(shell $(GIT_CONFIG_GET)     devkit.build-command)
 BUILD_VOLUMES = $(shell $(GIT_CONFIG_GET_ALL) devkit.build-volumes)
 BUILD_ID      = $(shell $(GIT_CONFIG_GET)     devkit.build-id || echo none)
+BUILD_COMMAND_HASH = $(shell $(GIT_CONFIG_GET) devkit.build-command 2>/dev/null | sha256sum | cut -f1 -d\ )
 
 ifneq ($(AGENT),dummy)
 SASHIKO_ENABLED = $(filter true yes on 1,$(SASHIKO))
@@ -84,7 +85,6 @@ SASHIKO_MODEL    = $(shell $(GIT_CONFIG_GET) devkit.sashiko-model    || echo use
 
 SASHIKO_HOME = .local/share/sashiko
 
-DEVPKGS += cargo
 VOLUMES += $(HOME)/$(SASHIKO_HOME):/home/user/$(SASHIKO_HOME):rw,Z
 
 ifneq ($(filter sashiko-daemon,$(MAKECMDGOALS)),)
@@ -99,10 +99,17 @@ SHAHASH = $(shell echo \
 	AUTH=$(UID):$(GID) \
 	AGENT=$(AGENT) \
 	VENDOR=$(VENDOR) \
+	VERSION=$(VERSION) \
 	BUILD_ID=$(BUILD_ID) \
+	BUILD_COMMAND=$(BUILD_COMMAND_HASH) \
 	SASHIKO=$(SASHIKO_ENABLED) \
 	DEVPKGS=$(sort $(DEVPKGS)) \
 	| sha256sum | cut -f1 -d\ )
+
+PODMAN_BUILD_ARGS = --layers
+ifneq ($(filter upgrade,$(MAKECMDGOALS)),)
+PODMAN_BUILD_ARGS += --no-cache --pull=always
+endif
 
 ifeq ($(strip $(AGENT.$(AGENT))),)
 $(error Unknown devkit.agent '$(AGENT)'. Supported: $(sort $(patsubst AGENT.%,%,$(filter AGENT.%,$(.VARIABLES)))))
@@ -239,11 +246,22 @@ _create_local_dirs:
 	[ -z '$(CONFDIR)' ] || mkdir -p -- $(HOME)/$(CONFDIR)
 	[ -z '$(DATADIR)' ] || mkdir -p -- $(HOME)/$(DATADIR)
 
+ubuntu.packages     = ca-certificates bash vim-tiny curl tar debianutils
 ubuntu.packages.npm = npm
 ubuntu.packages.scr = bash curl
 
+COREPKGS    = $(sort $(ubuntu.packages))
+AGENTPKGS   = $(sort $(filter-out $(COREPKGS),$(AGENT.$(AGENT).PACKAGES) $(ubuntu.packages.$(INST))))
+USERPKGS    = $(sort $(filter-out $(COREPKGS) $(AGENTPKGS),$(DEVPKGS)))
+SASHIKOPKGS = $(sort $(filter-out $(COREPKGS) $(USERPKGS) $(AGENTPKGS),$(if $(SASHIKO_ENABLED),cargo)))
+
+ubuntu-install = RUN apt-get -y -q$(if $(Q),qq) update; apt-get -y -q$(if $(Q),qq) --no-install-recommends install $(1); apt-get -y -q$(if $(Q),qq) clean; rm -rf /var/lib/apt/lists/*
+
 _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
-	$(Q)image="`$(PODMAN) image list --filter label=local.devkit.hash=$(SHAHASH) --format '{{.Id}}' | head -1`"
+	$(Q)image=
+	if [ -z '$(filter upgrade,$(MAKECMDGOALS))' ]; then
+	  image="`$(PODMAN) image list --filter label=local.devkit.hash=$(SHAHASH) --format '{{.Id}}' | head -1`"
+	fi
 	current="`$(PODMAN) image list --filter 'reference=$(PODMAN_IMAGE)' --format '{{.Id}}' | head -1`"
 	[ -z "$$current" ] || [ "$$current" = "$$image" ] || $(PODMAN) image rm -f '$(PODMAN_IMAGE)'
 	[ -z "$$image" ] || {
@@ -256,8 +274,10 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  --label=local.devkit.agent.version="$$agent_version" \
 	  --label=local.devkit.build.id=$(BUILD_ID) \
 	  --label=local.devkit.hash=$(SHAHASH) \
+	  --build-arg=DEVKIT_AGENT_VERSION="$$agent_version" \
+	  --build-arg=DEVKIT_BUILD_ID="$(BUILD_ID)" \
 	  $(addprefix --volume=,$(BUILD_VOLUMES)) \
-	  --layers=false --force-rm --format=docker --file=- <<-'EOF'
+	  $(PODMAN_BUILD_ARGS) --force-rm --format=docker --file=- <<-'EOF'
 	  FROM docker.io/library/ubuntu:latest
 	  USER root
 	  ENV DEBIAN_FRONTEND=noninteractive
@@ -273,17 +293,20 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  RUN groupadd -g "$(GID)" user; useradd --uid="$(UID)" --gid="$(GID)" -d /home/user -m user
 	  RUN mkdir -p -- /home/user/.config /home/user/.local/{bin,lib,state,share}
 	  RUN chown -R '$(UID):$(GID)' /home/user
-	  RUN apt-get -y -q$(if $(Q),qq) update
-	  RUN apt-get -y -q$(if $(Q),qq) --no-install-recommends install $(sort ca-certificates bash vim-tiny curl tar debianutils $(DEVPKGS) $(AGENT.$(AGENT).PACKAGES) $(ubuntu.packages.$(INST)))
-	  RUN apt-get -y -q$(if $(Q),qq) clean; rm -rf /var/lib/apt/lists/*
+	  $(call ubuntu-install,$(COREPKGS))
+	  $(if $(AGENTPKGS),$(call ubuntu-install,$(AGENTPKGS)))
 	  RUN find /root -type d | xargs -r chmod -R g+rx,o+rx
-	  RUN :;$(if $(filter npm,$(INST)), npm install -g "$(LINK)" --omit=dev && rm -rf /root/.npm /root/.cache)
-	  RUN :;$(if $(filter scr,$(INST)), curl -fsSL "$(LINK)" | $(SCR_ENV) bash)
-	  RUN :;$(if $(SASHIKO_ENABLED), cargo install --root / sashiko)
+	  ARG DEVKIT_AGENT_VERSION
+	  $(if $(filter npm,$(INST)),RUN : "$$DEVKIT_AGENT_VERSION"; npm install -g "$(LINK)" --omit=dev && rm -rf /root/.npm /root/.cache)
+	  $(if $(filter scr,$(INST)),RUN : "$$DEVKIT_AGENT_VERSION"; curl -fsSL "$(LINK)" | $(SCR_ENV) bash)
+	  $(if $(USERPKGS),$(call ubuntu-install,$(USERPKGS)))
+	  $(if $(SASHIKOPKGS),$(call ubuntu-install,$(SASHIKOPKGS)))
+	  $(if $(SASHIKO_ENABLED),RUN cargo install --root / sashiko)
 	  SHELL ["/bin/bash", "-eio", "pipefail", "-c"]
 	  RUN bin="`command -v $(BIN)`"; [ "$$bin" = "/usr/local/bin/$(BIN)" ] || ln -vs -- "$$bin" "/usr/local/bin/$(BIN)"
 	  SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
-	  RUN :; $(BUILD_COMMAND)
+	  ARG DEVKIT_BUILD_ID
+	  RUN : "$$DEVKIT_BUILD_ID"; $(BUILD_COMMAND)
 	  ENTRYPOINT ["/.devkit/entry","/usr/local/bin/$(BIN)"]
 	EOF
 

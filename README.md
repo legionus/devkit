@@ -39,6 +39,15 @@ base, installs the selected agent and requested packages, applies build-time
 customizations, and records metadata labels such as the agent, agent version and
 configuration hash.
 
+Whole-image reuse requires the complete image identity to match. Git include
+files compose configuration but do not create parent images or separate package
+layers. When devkit must build an image, podman may reuse unchanged intermediate
+layers from earlier builds. Fixed packages, agent dependencies, the agent, the
+configured package list, and optional sashiko support are built in separate
+steps. Agent dependencies and installation precede the configured package
+list, allowing images for the same agent to share its layers when their
+configured packages differ.
+
 At runtime devkit starts a named podman container for the repository. The
 project tree is mounted at `/srv/<project-name>`, the selected agent
 configuration directory is mounted from the host, and any configured volumes are
@@ -99,6 +108,9 @@ Upgrade container image:
 $ devkit.sh upgrade
 ```
 
+An upgrade pulls the current ubuntu base image and performs a fresh build
+without reusing complete images or cached intermediate layers.
+
 Remove images for current environment:
 
 ```
@@ -110,6 +122,9 @@ Remove all devkit images:
 ```
 $ devkit.sh clean-all
 ```
+
+The clean commands remove tagged devkit images. They retain podman's
+intermediate build cache, which remains under podman cache management.
 
 ### Optional Sashiko review service
 
@@ -201,10 +216,16 @@ Benefits:
 
 - single source of truth
 - consistent tooling
-- automatic image reuse
+- automatic image reuse when complete image identities match
 - minimal per-repository setup
 
 Local repository configuration may override included values.
+
+An included profile is not a parent-image boundary. Projects that add different
+package sets produce different complete image identities, but projects using
+the same agent can share layers through the agent installation. The configured
+package layer is shared only when its package list and all preceding layers
+match.
 
 ## License
 

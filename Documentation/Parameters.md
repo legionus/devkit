@@ -3,6 +3,16 @@
 devkit reads these parameters from the git-config of the project for which the
 agent is started.
 
+Normal image builds use podman's intermediate-layer cache. The `upgrade`
+command bypasses this cache and pulls the current ubuntu base image before
+building. The `clean` and `clean-all` commands remove tagged images but retain
+the intermediate build cache.
+
+Fixed packages, agent dependencies, the agent, `devkit.packages`, optional
+sashiko support, and custom build commands are separate build stages. Agent
+installation precedes `devkit.packages`, allowing projects with different
+package lists to share the larger agent layers when they use the same agent.
+
 Inspect configuration:
 
 ```sh
@@ -85,6 +95,8 @@ Shell fragment executed as root while building the agent image.
 
 This is intended for project-specific image customization that does not fit
 into the package list, such as installing extra tools from a mounted script.
+The command value is part of the image identity, so changing it causes devkit
+to build a new image.
 
 Example:
 
@@ -112,7 +124,8 @@ Identifier for custom build inputs.
 This value is part of the image identity and defaults to `none`. Change it
 when files used by `devkit.build-command` change, especially when those files
 come from `devkit.build-volumes`. devkit cannot detect content changes inside
-arbitrary build volumes automatically.
+arbitrary build volumes automatically. The value also invalidates the cached
+custom-build layer.
 
 Example:
 
