@@ -5,6 +5,9 @@ on:
       - "master"
       - "for-master"
       - "patchset/**"
+  pull_request:
+    branches:
+      - "master"
 jobs:
   checks:
     runs-on: ubuntu-latest
@@ -12,11 +15,14 @@ jobs:
       matrix:
         agent:
           - aider
+          - cecli
           - claude
           - codex
           - copilot
           - gemini
+          - goose
           - grok
+          - kimi
           - opencode
           - vibe
       fail-fast: false
