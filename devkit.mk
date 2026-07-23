@@ -133,6 +133,8 @@ VOLUMES += $(foreach f,$(CONFFILES),$(if $(wildcard $(HOME)/$(f)),$(HOME)/$(f):/
 PODMAN_ARGS = \
 	--env=LANG=C.UTF8 \
 	--env=EDITOR=$(EDITOR) \
+	--tmpfs /run \
+	--tmpfs /tmp \
 	--tty --interactive \
 	--user='$(if $(ROOT),root,$(UID):$(GID))' \
 	--workdir='$(WORKDIR)'
