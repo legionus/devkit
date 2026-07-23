@@ -229,8 +229,10 @@ _create_local_dirs:
 
 ubuntu.packages     = ca-certificates bash vim-tiny curl tar debianutils
 ubuntu.packages.npm = npm
-ubuntu.packages.pip = python3-pip
+ubuntu.packages.pip = python3-venv
 ubuntu.packages.scr = bash curl
+
+PIP_VENV = /opt/devkit/agent
 
 COREPKGS    = $(sort $(ubuntu.packages))
 AGENTPKGS   = $(sort $(filter-out $(COREPKGS),$(PACKAGES) $(ubuntu.packages.$(INST))))
@@ -280,13 +282,13 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  RUN find /root -type d | xargs -r chmod -R g+rx,o+rx
 	  ARG DEVKIT_AGENT_VERSION
 	  $(if $(filter npm,$(INST)),RUN : "$$DEVKIT_AGENT_VERSION"; npm install -g "$(LINK)" --omit=dev && rm -rf /root/.npm /root/.cache)
-	  $(if $(filter pip,$(INST)),RUN : "$$DEVKIT_AGENT_VERSION"; python3 -m pip install $(if $(Q),-q) --no-cache-dir --break-system-packages "$(LINK)")
+	  $(if $(filter pip,$(INST)),RUN : "$$DEVKIT_AGENT_VERSION" && python3 -m venv "$(PIP_VENV)" && "$(PIP_VENV)/bin/python" -m pip install $(if $(Q),-q) --no-cache-dir "$(LINK)" && "$(PIP_VENV)/bin/python" -m pip check)
 	  $(if $(filter scr,$(INST)),RUN : "$$DEVKIT_AGENT_VERSION"; curl -fsSL "$(LINK)" | $(SCR_ENV) bash)
 	  $(if $(USERPKGS),$(call ubuntu-install,$(USERPKGS)))
 	  $(if $(SASHIKOPKGS),$(call ubuntu-install,$(SASHIKOPKGS)))
 	  $(if $(SASHIKO_ENABLED),RUN cargo install --root / sashiko)
 	  SHELL ["/bin/bash", "-eio", "pipefail", "-c"]
-	  RUN bin="`command -v $(BIN)`"; [ "$$bin" = "/usr/local/bin/$(BIN)" ] || ln -vs -- "$$bin" "/usr/local/bin/$(BIN)"
+	  RUN bin="$(if $(filter pip,$(INST)),$(PIP_VENV)/bin/$(BIN),`command -v $(BIN)`)" && [ -x "$$bin" ] && { [ "$$bin" = "/usr/local/bin/$(BIN)" ] || ln -vs -- "$$bin" "/usr/local/bin/$(BIN)"; }
 	  SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 	  ARG DEVKIT_BUILD_ID
 	  RUN : "$$DEVKIT_BUILD_ID"; $(BUILD_COMMAND)

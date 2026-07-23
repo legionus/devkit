@@ -1,6 +1,7 @@
 HOMEURL = https://github.com/Aider-AI/aider/releases/latest
-INST    = pip
-LINK    = aider-chat
+# Use upstream installer to provision Aider's required Python 3.12.
+INST    = scr
+LINK    = https://aider.chat/install.sh
 BIN     = aider
 CONFDIR = .aider
 DATADIR =
