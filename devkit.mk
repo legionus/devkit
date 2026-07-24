@@ -243,6 +243,10 @@ SASHIKOPKGS = $(sort $(filter-out $(COREPKGS) $(USERPKGS) $(AGENTPKGS),$(if $(SA
 
 ubuntu-install = RUN apt-get -y -q$(if $(Q),qq) update; apt-get -y -q$(if $(Q),qq) --no-install-recommends install $(1); apt-get -y -q$(if $(Q),qq) clean; rm -rf /var/lib/apt/lists/*
 
+run.install.npm = npm install -g "$(LINK)" --omit=dev && rm -rf /root/.npm /root/.cache
+run.install.pip = python3 -m venv "$(PIP_VENV)" && "$(PIP_VENV)/bin/python" -m pip install $(if $(Q),-q) --no-cache-dir "$(LINK)" && "$(PIP_VENV)/bin/python" -m pip check
+run.install.scr = curl -fsSL "$(LINK)" | $(SCR_ENV) bash
+
 _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	$(Q)image=
 	if [ -z '$(filter upgrade,$(MAKECMDGOALS))' ]; then
@@ -283,9 +287,7 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  $(if $(AGENTPKGS),$(call ubuntu-install,$(AGENTPKGS)))
 	  RUN find /root -type d | xargs -r chmod -R g+rx,o+rx
 	  ARG DEVKIT_AGENT_VERSION
-	  $(if $(filter npm,$(INST)),RUN : "$$DEVKIT_AGENT_VERSION"; npm install -g "$(LINK)" --omit=dev && rm -rf /root/.npm /root/.cache)
-	  $(if $(filter pip,$(INST)),RUN : "$$DEVKIT_AGENT_VERSION" && python3 -m venv "$(PIP_VENV)" && "$(PIP_VENV)/bin/python" -m pip install $(if $(Q),-q) --no-cache-dir "$(LINK)" && "$(PIP_VENV)/bin/python" -m pip check)
-	  $(if $(filter scr,$(INST)),RUN : "$$DEVKIT_AGENT_VERSION"; curl -fsSL "$(LINK)" | $(SCR_ENV) bash)
+	  RUN : "$$DEVKIT_AGENT_VERSION"; $(run.install.$(INST))
 	  $(if $(USERPKGS),$(call ubuntu-install,$(USERPKGS)))
 	  $(if $(SASHIKOPKGS),$(call ubuntu-install,$(SASHIKOPKGS)))
 	  $(if $(SASHIKO_ENABLED),RUN cargo install --root / sashiko)
