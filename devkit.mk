@@ -292,11 +292,11 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  $(if $(SASHIKOPKGS),$(call ubuntu-install,$(SASHIKOPKGS)))
 	  $(if $(SASHIKO_ENABLED),RUN cargo install --root / sashiko)
 	  SHELL ["/bin/bash", "-eio", "pipefail", "-c"]
-	  RUN bin="$(if $(filter pip,$(INST)),$(PIP_VENV)/bin/$(BIN),`command -v $(BIN)`)" && [ -x "$$bin" ] && { [ "$$bin" = "/usr/local/bin/$(BIN)" ] || ln -vs -- "$$bin" "/usr/local/bin/$(BIN)"; }
+	  RUN bin="`command -v $(BIN)`" && [ -x "$$bin" ] && { [ "$$bin" = "/usr/local/bin/agent" ] || ln -vs -- "$$bin" "/usr/local/bin/agent"; }
 	  SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 	  ARG DEVKIT_BUILD_ID
 	  RUN : "$$DEVKIT_BUILD_ID"; $(BUILD_COMMAND)
-	  ENTRYPOINT ["/.devkit/entry","/usr/local/bin/$(BIN)"]
+	  ENTRYPOINT ["/.devkit/entry","/usr/local/bin/agent"]
 	EOF
 
 PASSTHRU_SHELL_ARGS = i=0; while [ $$i -lt $${NARGS:-0} ]; do eval "a=\"\$${ARG$$i-}\""; set -- "$$@" "$$a"; i=$$(($$i+1)); done
