@@ -1,7 +1,7 @@
 HOMEURL = https://github.com/cecli-dev/cecli/releases/latest
 INST    = pip
 LINK    = cecli-dev
-BIN     = cecli
+BIN     = /opt/devkit/agent/bin/cecli
 CONFDIR = .cecli
 DATADIR =
 SCR_ENV =
