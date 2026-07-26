@@ -133,8 +133,6 @@ VOLUMES += $(foreach f,$(CONFFILES),$(if $(wildcard $(HOME)/$(f)),$(HOME)/$(f):/
 PODMAN_ARGS = \
 	--env=LANG=C.UTF8 \
 	--env=EDITOR=$(EDITOR) \
-	--tmpfs /run \
-	--tmpfs /tmp \
 	--tty --interactive \
 	--user='$(if $(ROOT),root,$(UID):$(GID))' \
 	--workdir='$(WORKDIR)'
@@ -142,6 +140,8 @@ PODMAN_RUNTIME_ARGS = $(PODMAN_ARGS) \
 	$(addprefix --env-file=,$(ENVFILES)) \
 	$(addprefix --cap-del=,$(patsubst -%,%,$(filter -%,$(CAPS)))) \
 	$(addprefix --cap-add=,$(patsubst +%,%,$(filter +%,$(CAPS)))) \
+	--tmpfs /run \
+	--tmpfs /tmp \
 	--rm --network=host --userns=keep-id --memory=$(LIMIT_MEMORY)
 PODMAN_VOLUMES = \
 	--volume=$(GITPROJDIR):/srv/$(PROJNAME):rw,Z \
