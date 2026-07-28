@@ -4,11 +4,12 @@
 CURFILE := $(lastword $(MAKEFILE_LIST))
 PROG ?= make -f $(CURFILE) --
 VERSION = 5
+DEVKIT_HOMEURL = https://github.com/devkit-dev/devkit/releases/latest
 
 V = $(VERBOSE)
 Q = $(if $(V),,@)
 
-SIMPLE_GOALS = help version list clean-all
+SIMPLE_GOALS = help version list clean-all self-upgrade
 SASHIKO_GOALS = sashiko sashiko-daemon sashiko-kill sashiko-logs
 PUBLIC_GOALS = $(SIMPLE_GOALS) $(SASHIKO_GOALS) clean init check upgrade exec shell run
 
@@ -33,6 +34,9 @@ GIT_CONFIG_GET_ALL = $(GIT) config --get-all
 GIT_CONFIG_SET     = $(GIT) config
 endif
 
+
+get-github-release = $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(1)' | sed -n 's,.*/tag/v\?,,p'
+
 ifeq ($(filter $(SIMPLE_GOALS),$(MAKECMDGOALS)),) # not SIMPLE_GOALS
 GITPROJDIR = $(shell $(GIT) rev-parse --show-toplevel 2>/dev/null)
 PROJNAME   = $(notdir $(GITPROJDIR))
@@ -52,6 +56,8 @@ ENVFILES = $(shell $(GIT_CONFIG_GET_ALL) devkit.env-file)
 CAPS     = $(shell $(GIT_CONFIG_GET_ALL) devkit.caps)
 
 LIMIT_MEMORY = $(shell $(GIT_CONFIG_GET) devkit.limit-memory || echo 0)
+
+CHECK_UPGRADE = $(shell $(GIT_CONFIG_GET) devkit.check-upgrade || echo true)
 
 BUILD_COMMAND = $(shell $(GIT_CONFIG_GET)     devkit.build-command)
 BUILD_VOLUMES = $(shell $(GIT_CONFIG_GET_ALL) devkit.build-volumes)
@@ -99,7 +105,6 @@ known_agents = $(patsubst %.mk,%,$(notdir $(wildcard $(AGENTS_DIR)/*.mk)))
 $(error Unknown devkit.agent '$(AGENT)'. Supported: $(sort $(known_agents)))
 endif
 
-get-github-release = $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(HOMEURL)' | sed -n 's,.*/tag/v\?,,p'
 
 include $(dir $(CURFILE))agents/$(AGENT).mk
 
@@ -153,7 +158,7 @@ PODMAN_IMAGE = localhost/devkit/$(PROJNAME):$(AGENT)
 
 endif # not SIMPLE_GOALS
 
-.PHONY: _create-image-ubuntu _create_local_dirs _check-version _check-none $(PUBLIC_GOALS)
+.PHONY: _create-image-ubuntu _create_local_dirs _check-devkit-version _check-self-upgrade _check-version _check-none $(PUBLIC_GOALS)
 .ONESHELL:
 
 help:
@@ -175,6 +180,7 @@ help:
 	echo " list            shows all devkit known images."
 	echo " check           shows current and available agent versions."
 	echo " upgrade         upgrades podman image for current devkit."
+	echo " self-upgrade    upgrade devkit to the latest version."
 	echo " exec            run a command in the devkit container."
 	echo " shell           open a shell in the devkit container."
 	echo " run             start the configured agent."
@@ -191,6 +197,8 @@ help:
 	echo ""
 	echo "Report bugs to authors."
 	echo ""
+	echo "Configuration (git config):"
+	echo " devkit.check-upgrade  check for new devkit version on run (default: true)."
 
 version:
 	@echo "devkit version $(VERSION)"
@@ -201,9 +209,17 @@ version:
 	echo "are welcome to redistribute it under certain conditions."
 	echo "See the GNU General Public Licence for details."
 
+_check-devkit-version:
+	$(Q)set -e --;
+	avail_ver="`$(call get-github-release,$(DEVKIT_HOMEURL))`";
+	echo "devkit information:";
+	echo " - release home page: $(DEVKIT_HOMEURL)";
+	echo " - available version: $${avail_ver:-*unavailable*}";
+	echo " -   current version: $(VERSION)";
+
 _check-version:
 	$(Q)set -e --;
-	avail_ver="`$(get-github-release)`";
+	avail_ver="`$(call get-github-release,$(HOMEURL))`";
 	image_ver="`$(PODMAN) image list --filter 'reference=$(PODMAN_IMAGE)' --format '{{index .Labels "local.devkit.agent.version"}}'`";
 	echo "The $(AGENT) information:";
 	echo " - release home page: $(HOMEURL)";
@@ -215,7 +231,16 @@ _check-dummy:
 	$(Q)set -e --;
 	echo "This is a project container without any AI agents."
 
-check: _check-$(if $(HOMEURL),version,dummy)
+_check-self-upgrade:
+	$(Q)if [ '$(CHECK_UPGRADE)' != 'false' ]; then \
+	  avail_ver="`$(call get-github-release,$(DEVKIT_HOMEURL))`"; \
+	  if [ -n "$$avail_ver" ] && [ "$$avail_ver" != "$(VERSION)" ]; then \
+	    echo "devkit: new version $$avail_ver is available (current: $(VERSION))." >&2; \
+	    echo "devkit: run \`devkit self-upgrade' to upgrade." >&2; \
+	  fi; \
+	fi
+
+check: _check-devkit-version _check-$(if $(HOMEURL),version,dummy)
 
 init:
 	$(Q)if ! $(GIT_CONFIG_GET) devkit.agent >/dev/null 2>&1; then
@@ -258,7 +283,7 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	   $(PODMAN) image tag "$$image" '$(PODMAN_IMAGE)'
 	   exit
 	}
-	agent_version="`$(get-github-release)`"
+	agent_version="`$(call get-github-release,$(HOMEURL))`"
 	$(PODMAN) image build --tag="$(PODMAN_IMAGE)" \
 	  --label=local.devkit.agent=$(AGENT) \
 	  --label=local.devkit.agent.version="$$agent_version" \
@@ -301,7 +326,7 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 
 PASSTHRU_SHELL_ARGS = i=0; while [ $$i -lt $${NARGS:-0} ]; do eval "a=\"\$${ARG$$i-}\""; set -- "$$@" "$$a"; i=$$(($$i+1)); done
 
-run: _create_local_dirs _create-image-$(VENDOR)
+run: _check-self-upgrade _create_local_dirs _create-image-$(VENDOR)
 	$(Q)set -e --; $(PASSTHRU_SHELL_ARGS);
 	if ! $(PODMAN) container exists '$(PODMAN_CONTAINER)'; then
 	  $(PODMAN) container run $(PODMAN_RUNTIME_ARGS) $(PODMAN_VOLUMES) \
@@ -326,6 +351,36 @@ upgrade: clean _create-image-$(VENDOR)
 
 list:
 	$(Q)$(PODMAN) image list --filter label=local.devkit.agent
+
+self-upgrade:
+	$(Q)set -e --;
+	avail_ver="`$(call get-github-release,$(DEVKIT_HOMEURL))`";
+	if [ "$${avail_ver}" = "$(VERSION)" ]; then
+	  echo "devkit is up to date ($(VERSION)).";
+	  exit 0;
+	fi;
+	if [ -z "$${avail_ver}" ]; then
+	  echo "devkit: unable to determine the latest version." >&2;
+	  exit 1;
+	fi;
+	bin_dir="";
+	for d in "$$HOME/bin" "$$HOME/.local/bin"; do
+	  case ":$${PATH-}:" in
+	    *:"$$d":*) bin_dir="$$d"; break ;;
+	  esac;
+	done;
+	if [ -z "$${bin_dir}" ]; then
+	  echo "devkit: error: neither $$HOME/bin nor $$HOME/.local/bin is in PATH." >&2;
+	  exit 1;
+	fi;
+	dest_dir="$$HOME/.local/share/devkit";
+	archive_url="$(DEVKIT_HOMEURL:releases/latest=archive/refs/tags/v$${avail_ver}.tar.gz)";
+	rm -rf -- "$$dest_dir";
+	mkdir -p -- "$$dest_dir";
+	$(CURL) -fsSL "$$archive_url" | tar -xzf - -C "$$dest_dir" --strip-components=1;
+	mkdir -p -- "$${bin_dir}";
+	ln -sf -- "$$dest_dir/devkit.sh" "$${bin_dir}/devkit";
+	echo "devkit upgraded: $(VERSION) -> $${avail_ver}";
 
 ifneq ($(SASHIKO_ENABLED),)
 $(HOME)/$(SASHIKO_HOME):
