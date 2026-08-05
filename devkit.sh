@@ -16,6 +16,8 @@ is_command()
 			;;
 		sashiko|sashiko-daemon|sashiko-kill|sashiko-logs)
 			;;
+		ollama|ollama-daemon|ollama-kill|ollama-logs)
+			;;
 		*)
 			return 1
 			;;
