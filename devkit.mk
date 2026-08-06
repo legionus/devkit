@@ -272,7 +272,7 @@ _create_local_dirs:
 	[ -z '$(CONFDIR)' ] || mkdir -p -- $(HOME)/$(CONFDIR)
 	[ -z '$(DATADIR)' ] || mkdir -p -- $(HOME)/$(DATADIR)
 
-ubuntu.packages     = ca-certificates bash vim-tiny curl tar debianutils
+ubuntu.packages     = ca-certificates git bash vim-tiny curl tar debianutils
 ubuntu.packages.npm = npm
 ubuntu.packages.pip = python3-venv
 ubuntu.packages.scr = bash curl
