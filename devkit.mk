@@ -150,6 +150,8 @@ endif # not SIMPLE_GOALS
 .PHONY: _create-image-ubuntu _create_local_dirs _check-devkit-version _check-self-upgrade _check-version _check-none $(PUBLIC_GOALS)
 .ONESHELL:
 
+MAKEFLAGS = --no-print-directory --no-builtin-rules
+
 help:
 	@echo ""
 	echo "Usage: $(PROG) [OPTION]... COMMAND [ARGS]..."
@@ -179,7 +181,7 @@ help:
 	echo " help            display this help and exit."
 	echo ""
 	for cmd in $(SUBCMDS); do
-	 $(MAKE) --no-print-directory -f "$(DEVKIT_WORKDIR)/subcmds/$$cmd.mk" "$$cmd-help"
+	 $(MAKE) -f "$(DEVKIT_WORKDIR)/subcmds/$$cmd.mk" "$$cmd-help"
 	done
 	echo "Report bugs to authors."
 	echo ""
