@@ -87,4 +87,6 @@ export PROG NARGS
 [ -z "$agent" ] ||
 	set -- "$@" "AGENT=$agent"
 
+export MAKEFLAGS="--no-print-directory --no-builtin-rules"
+
 exec make -f "$cwd/devkit.mk" ${workdir:+--directory="$workdir"} -- "$@"
