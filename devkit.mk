@@ -183,10 +183,12 @@ help:
 	for cmd in $(SUBCMDS); do
 	 $(MAKE) -f "$(DEVKIT_WORKDIR)/subcmds/$$cmd.mk" "$$cmd-help"
 	done
+	echo "Configuration (git config):"
+	echo " devkit.check-upgrade   check for new devkit version on run"
+	echo "                        (default: true)."
+	echo ""
 	echo "Report bugs to authors."
 	echo ""
-	echo "Configuration (git config):"
-	echo " devkit.check-upgrade  check for new devkit version on run (default: true)."
 
 version:
 	@echo "devkit version $(VERSION)"
