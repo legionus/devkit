@@ -27,6 +27,7 @@ sashiko-help:
 ifneq ($(sashiko_ENABLED),)
 
 VOLUMES += $(HOME)/$(SASHIKO_HOME):/home/user/$(SASHIKO_HOME):rw,Z
+PODMAN_PATH += /home/user/$(SASHIKO_HOME)/bin
 
 ifneq ($(filter sashiko-daemon,$(MAKECMDGOALS)),)
 WORKDIR = /home/user/$(SASHIKO_HOME)

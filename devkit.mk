@@ -10,6 +10,8 @@ DEVKIT_WORKDIR = $(realpath $(dir $(CURFILE)))
 
 V = $(VERBOSE)
 Q = $(if $(V),,@)
+NULL =
+SPACE = $(NULL) $(NULL)
 
 SIMPLE_GOALS = help version list clean-all self-upgrade
 PUBLIC_GOALS = $(SIMPLE_GOALS) clean init check upgrade exec shell run
@@ -144,6 +146,7 @@ PODMAN_VOLUMES = \
 
 PODMAN_CONTAINER = $(AGENT)-for-$(PROJNAME)
 PODMAN_IMAGE = localhost/devkit/$(PROJNAME):$(AGENT)
+PODMAN_PATH =
 
 endif # not SIMPLE_GOALS
 
@@ -286,7 +289,7 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  FROM docker.io/library/ubuntu:latest
 	  USER root
 	  ENV DEBIAN_FRONTEND=noninteractive
-	  ENV PATH=/home/user/$(SASHIKO_HOME)/bin:/home/user/bin:/home/user/.local/bin:/root/bin:/root/.local/bin:$$PATH
+	  ENV PATH=$(if $(PODMAN_PATH),$(subst $(SPACE),:,$(PODMAN_PATH)):)/home/user/bin:/home/user/.local/bin:/root/bin:/root/.local/bin:$$PATH
 	  SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 	  RUN mkdir -p -- /.devkit
 	  RUN printf >/.devkit/entry '%s\n' \
