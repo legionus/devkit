@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright (C) 2026  Alexey Gladkov <gladkov.alexey@gmail.com>
+# Copyright (C) 2026  Wladmis <dev@wladmis.org>
 
 CURFILE := $(lastword $(MAKEFILE_LIST))
 PROG ?= make -f $(CURFILE) --
@@ -189,6 +190,7 @@ version:
 	@echo "devkit version $(VERSION)"
 	echo ""
 	echo "Copyright (C) 2026  Alexey Gladkov."
+	echo "Copyright (C) 2026  Wladmis."
 	echo ""
 	echo "devkit comes with ABSOLUTELY NO WARRANTY. This is free software, and you"
 	echo "are welcome to redistribute it under certain conditions."
