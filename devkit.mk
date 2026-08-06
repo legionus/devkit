@@ -34,7 +34,7 @@ GIT_CONFIG_GET_ALL = $(GIT) config --get-all
 GIT_CONFIG_SET     = $(GIT) config
 endif
 
-
+get-if-true = $(if $(filter true yes on 1,$(1)),true)
 get-github-release = $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(1)' | sed -n 's,.*/tag/v\?,,p'
 
 ifeq ($(filter $(SIMPLE_GOALS),$(MAKECMDGOALS)),) # not SIMPLE_GOALS
@@ -49,6 +49,7 @@ AGENT    = $(shell $(GIT_CONFIG_GET)     devkit.agent    || echo dummy)
 DEVSHELL = $(shell $(GIT_CONFIG_GET)     devkit.shell    || echo /bin/bash)
 EDITOR   = $(shell $(GIT_CONFIG_GET)     devkit.editor   || echo /usr/bin/editor)
 SASHIKO  = $(shell $(GIT_CONFIG_GET)     devkit.sashiko  || echo false)
+OLLAMA   = $(shell $(GIT_CONFIG_GET)     devkit.ollama   || echo false)
 HOOKS    = $(shell $(GIT_CONFIG_GET)     devkit.hooks-path)
 DEVPKGS  = $(shell $(GIT_CONFIG_GET_ALL) devkit.packages)
 VOLUMES  = $(shell $(GIT_CONFIG_GET_ALL) devkit.volumes)
@@ -65,8 +66,11 @@ BUILD_ID      = $(shell $(GIT_CONFIG_GET)     devkit.build-id || echo none)
 BUILD_COMMAND_HASH = $(shell $(GIT_CONFIG_GET) devkit.build-command 2>/dev/null | sha256sum | cut -f1 -d\ )
 
 ifneq ($(AGENT),dummy)
-SASHIKO_ENABLED = $(filter true yes on 1,$(SASHIKO))
+SASHIKO_ENABLED = $(call get-if-true,$(SASHIKO))
+OLLAMA_ENABLED  = $(call get-if-true,$(OLLAMA))
 endif
+
+PODMAN_BUILD_ARGS = --layers
 
 ifneq ($(SASHIKO_ENABLED),)
 SASHIKO_PROVIDER = $(shell $(GIT_CONFIG_GET) devkit.sashiko-provider || echo $(AGENT)-cli)
@@ -79,7 +83,14 @@ VOLUMES += $(HOME)/$(SASHIKO_HOME):/home/user/$(SASHIKO_HOME):rw,Z
 ifneq ($(filter sashiko-daemon,$(MAKECMDGOALS)),)
 WORKDIR = /home/user/$(SASHIKO_HOME)
 endif
-endif
+endif # SASHIKO_ENABLED
+
+ifneq ($(OLLAMA_ENABLED),)
+OLLAMA_URL = https://ollama.com/install.sh
+OLLAMA_HOME = .ollama
+VOLUMES += $(HOME)/$(OLLAMA_HOME):/home/user/$(OLLAMA_HOME):rw,Z
+PODMAN_BUILD_ARGS += --device /dev/dri
+endif # OLLAMA_ENABLED
 
 SHAHASH = $(shell echo \
 	AUTH=$(UID):$(GID) \
@@ -89,10 +100,10 @@ SHAHASH = $(shell echo \
 	BUILD_ID=$(BUILD_ID) \
 	BUILD_COMMAND=$(BUILD_COMMAND_HASH) \
 	SASHIKO=$(SASHIKO_ENABLED) \
+	OLLAMA=$(OLLAMA_ENABLED) \
 	DEVPKGS=$(sort $(DEVPKGS)) \
 	| sha256sum | cut -f1 -d\ )
 
-PODMAN_BUILD_ARGS = --layers
 ifneq ($(filter upgrade,$(MAKECMDGOALS)),)
 PODMAN_BUILD_ARGS += --no-cache --pull=always
 endif
@@ -154,11 +165,12 @@ PODMAN_VOLUMES = \
 
 PODMAN_CONTAINER = $(AGENT)-for-$(PROJNAME)
 SASHIKO_CONTAINER = $(PODMAN_CONTAINER)-sashiko
+OLLAMA_CONTAINER = $(PODMAN_CONTAINER)-ollama
 PODMAN_IMAGE = localhost/devkit/$(PROJNAME):$(AGENT)
 
 endif # not SIMPLE_GOALS
 
-.PHONY: _create-image-ubuntu _create_local_dirs _check-devkit-version _check-self-upgrade _check-version _check-none $(PUBLIC_GOALS)
+.PHONY: _create-image-ubuntu _create_local_dirs _check-devkit-version _check-self-upgrade _check-version _check-none _disabled $(PUBLIC_GOALS)
 .ONESHELL:
 
 help:
@@ -194,6 +206,12 @@ help:
 	echo " sashiko-daemon  start the review daemon."
 	echo " sashiko-kill    stop the review daemon."
 	echo " sashiko-logs    show review-daemon logs."
+	echo ""
+	echo "Optional ollama commands (require: git config devkit.ollama true):"
+	echo " ollama          execute ollama command."
+	echo " ollama-daemon   start the daemon."
+	echo " ollama-kill     stop the daemon."
+	echo " ollama-logs     show daemon logs."
 	echo ""
 	echo "Report bugs to authors."
 	echo ""
@@ -265,6 +283,7 @@ COREPKGS    = $(sort $(ubuntu.packages))
 AGENTPKGS   = $(sort $(filter-out $(COREPKGS),$(PACKAGES) $(ubuntu.packages.$(INST))))
 USERPKGS    = $(sort $(filter-out $(COREPKGS) $(AGENTPKGS),$(DEVPKGS)))
 SASHIKOPKGS = $(sort $(filter-out $(COREPKGS) $(USERPKGS) $(AGENTPKGS),$(if $(SASHIKO_ENABLED),cargo)))
+OLLAMAPKGS  = $(sort $(filter-out $(COREPKGS) $(USERPKGS) $(AGENTPKGS),$(if $(OLLAMA_ENABLED),zstd mesa-vulkan-drivers libvulkan1 vulkan-tools pciutils)))
 
 ubuntu-install = RUN apt-get -y -q$(if $(Q),qq) update; apt-get -y -q$(if $(Q),qq) --no-install-recommends install $(1); apt-get -y -q$(if $(Q),qq) clean; rm -rf /var/lib/apt/lists/*
 
@@ -315,7 +334,9 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	  RUN : "$$DEVKIT_AGENT_VERSION"; $(run.install.$(INST))
 	  $(if $(USERPKGS),$(call ubuntu-install,$(USERPKGS)))
 	  $(if $(SASHIKOPKGS),$(call ubuntu-install,$(SASHIKOPKGS)))
+	  $(if $(OLLAMAPKGS),$(call ubuntu-install,$(OLLAMAPKGS)))
 	  $(if $(SASHIKO_ENABLED),RUN cargo install --root / sashiko)
+	  $(if $(OLLAMA_ENABLED),RUN $(CURL) -fsSL $(OLLAMA_URL) | bash)
 	  SHELL ["/bin/bash", "-eio", "pipefail", "-c"]
 	  RUN bin="`command -v $(BIN)`" && [ -x "$$bin" ] && { [ "$$bin" = "/usr/local/bin/agent" ] || ln -vs -- "$$bin" "/usr/local/bin/agent"; }
 	  SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
@@ -382,6 +403,17 @@ self-upgrade:
 	ln -sf -- "$$dest_dir/devkit.sh" "$${bin_dir}/devkit";
 	echo "devkit upgraded: $(VERSION) -> $${avail_ver}";
 
+_container-kill:
+	$(Q)set -e --;
+	! $(PODMAN) container exists '$(_CONTAINER)' ||
+	  $(PODMAN) container kill '$(_CONTAINER)'
+
+_container-logs:
+	$(Q)set -e --; $(PASSTHRU_SHELL_ARGS);
+	$(PODMAN) container logs '$(_CONTAINER)' "$$@" $(ARGS);
+
+.PHONY: _container-kill _container-logs
+
 ifneq ($(SASHIKO_ENABLED),)
 $(HOME)/$(SASHIKO_HOME):
 	$(Q)mkdir -p -- \
@@ -439,13 +471,10 @@ sashiko-daemon: _create_local_dirs _create-image-$(VENDOR) $(HOME)/$(SASHIKO_HOM
 	  --entrypoint='["/.devkit/entry","sashiko"]' -- '$(PODMAN_IMAGE)' "$$@" $(ARGS);
 
 sashiko-kill:
-	$(Q)set -e --;
-	! $(PODMAN) container exists '$(SASHIKO_CONTAINER)' ||
-	  $(PODMAN) container kill '$(SASHIKO_CONTAINER)'
+	$(Q)$(MAKE) --no-print-directory -f $(CURFILE) _container-kill _CONTAINER='$(SASHIKO_CONTAINER)'
 
 sashiko-logs:
-	$(Q)set -e --; $(PASSTHRU_SHELL_ARGS);
-	$(PODMAN) container logs '$(SASHIKO_CONTAINER)' "$$@" $(ARGS);
+	$(Q)$(MAKE) --no-print-directory -f $(CURFILE) _container-logs _CONTAINER='$(SASHIKO_CONTAINER)'
 
 sashiko:
 	$(Q)set -e --; $(PASSTHRU_SHELL_ARGS);
@@ -453,14 +482,33 @@ sashiko:
 	   $(MAKE) --no-print-directory -f $(CURFILE) sashiko-daemon NARGS=0 SASHIKO_BACKGROUND=1
 	$(PODMAN) container exec $(PODMAN_ARGS) -- '$(SASHIKO_CONTAINER)' sashiko-cli "$$@" $(ARGS);
 else
-.PHONY: _sashiko-disabled
+DISABLED_GOALS += sashiko-daemon sashiko-kill sashiko-logs sashiko
+endif # SASHIKO_ENABLED
 
-_sashiko-disabled:
-	@echo "devkit: sashiko support is not enabled in git-config."
-	echo  "devkit: run \`git config set devkit.sashiko true' to enable it."
+ifneq ($(OLLAMA_ENABLED),)
+ollama-daemon: _create_local_dirs _create-image-$(VENDOR)
+	$(Q)set -e --; $(PASSTHRU_SHELL_ARGS);
+	$(PODMAN) container run $(PODMAN_RUNTIME_ARGS) $(PODMAN_VOLUMES) $(if $(OLLAMA_BACKGROUND),--detach) \
+	  --name '$(OLLAMA_CONTAINER)' $(if $(V),--env=OLLAMA_DEBUG=1) \
+	  --device /dev/dri \
+	  --entrypoint='["/.devkit/entry","ollama","serve"]' -- '$(PODMAN_IMAGE)' "$$@" $(ARGS);
 
-sashiko-daemon: _sashiko-disabled
-sashiko-kill:   _sashiko-disabled
-sashiko-logs:   _sashiko-disabled
-sashiko:        _sashiko-disabled
-endif
+ollama-kill:
+	$(Q)$(MAKE) --no-print-directory -f $(CURFILE) _container-kill _CONTAINER='$(OLLAMA_CONTAINER)'
+
+ollama-logs:
+	$(Q)$(MAKE) --no-print-directory -f $(CURFILE) _container-logs _CONTAINER='$(OLLAMA_CONTAINER)'
+
+ollama:
+	$(Q)set -e --; $(PASSTHRU_SHELL_ARGS);
+	$(PODMAN) container exists '$(OLLAMA_CONTAINER)' ||
+	   $(MAKE) --no-print-directory -f $(CURFILE) ollama-daemon NARGS=0 OLLAMA_BACKGROUND=1
+	$(PODMAN) container exec $(PODMAN_ARGS) -- '$(OLLAMA_CONTAINER)' ollama "$$@" $(ARGS);
+else
+DISABLED_GOALS += ollama-daemon ollama-kill ollama-logs ollama
+endif # OLLAMA_ENABLED
+
+_disabled:
+	@echo "devkit: $(firstword $(subst -, ,$(firstword $(MAKECMDGOALS)))) support is not enabled in git-config."
+
+$(DISABLED_GOALS): _disabled
