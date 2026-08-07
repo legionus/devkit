@@ -174,6 +174,7 @@ Example of configuration:
 Supported agents:
 
 - [aider](https://aider.chat)
+- [antigravity](https://antigravity.google/cli)
 - [cecli](https://github.com/cecli-dev/cecli)
 - [claude](https://claude.ai)
 - [codex](https://github.com/openai/codex)
