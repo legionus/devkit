@@ -40,6 +40,11 @@ endif
 get-if-true = $(if $(filter true yes on 1,$(1)),true)
 get-github-release = $(CURL) -fsSL -o /dev/null -w '%{url_effective}' '$(1)' | sed -n 's,.*/tag/v\?,,p'
 
+get-agent-release = \
+	$(if $(RELEASE_CMD),\
+		$(RELEASE_CMD),\
+		$(call get-github-release,$(HOMEURL)))
+
 SUBCMDS = $(basename $(notdir $(wildcard $(DEVKIT_WORKDIR)/subcmds/*.mk)))
 
 ifeq ($(filter $(SIMPLE_GOALS),$(MAKECMDGOALS)),) # not SIMPLE_GOALS
@@ -213,7 +218,7 @@ _check-devkit-version:
 
 _check-version:
 	$(Q)set -e --;
-	avail_ver="`$(call get-github-release,$(HOMEURL))`";
+	avail_ver="`$(get-agent-release)`";
 	image_ver="`$(PODMAN) image list --filter 'reference=$(PODMAN_IMAGE)' --format '{{index .Labels "local.devkit.agent.version"}}'`";
 	echo "The $(AGENT) information:";
 	echo " - release home page: $(HOMEURL)";
@@ -276,7 +281,7 @@ _create-image-ubuntu: $(if $(filter upgrade,$(MAKECMDGOALS)),clean)
 	   $(PODMAN) image tag "$$image" '$(PODMAN_IMAGE)'
 	   exit
 	}
-	agent_version="`$(call get-github-release,$(HOMEURL))`"
+	agent_version="`$(get-agent-release)`"
 	$(PODMAN) image build --tag="$(PODMAN_IMAGE)" \
 	  --label=local.devkit.agent=$(AGENT) \
 	  --label=local.devkit.agent.version="$$agent_version" \
