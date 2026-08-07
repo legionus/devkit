@@ -148,6 +148,26 @@ $ devkit.sh sashiko
 `devkit.sh sashiko-daemon` starts the review daemon, `devkit.sh sashiko-kill`
 stops it, and `devkit.sh sashiko-logs` shows its logs.
 
+See [Documentation/sashiko.md](Documentation/sashiko.md) for the commands,
+configuration parameters, persistent data, and service defaults.
+
+### Optional Ollama service
+
+Enable Ollama for a repository:
+
+```
+$ git config devkit.ollama true
+```
+
+Start the service if needed and execute the Ollama client:
+
+```
+$ devkit.sh ollama
+```
+
+See [Documentation/ollama.md](Documentation/ollama.md) for the commands,
+requirements, configuration, and persistent data.
+
 ## Configuration
 
 All configuration is stored in `git-config`.

@@ -137,3 +137,14 @@ Example:
 ```sh
 git config devkit.build-id tools-2026-05-03
 ```
+
+## devkit.sashiko
+
+Enables the optional Sashiko Linux kernel review service. See
+[sashiko.md](sashiko.md) for its commands and the `devkit.sashiko-provider` and
+`devkit.sashiko-model` parameters.
+
+## devkit.ollama
+
+Enables the optional Ollama service. See [ollama.md](ollama.md) for its
+commands, host requirements, and persistent data.
