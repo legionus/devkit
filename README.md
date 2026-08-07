@@ -174,10 +174,12 @@ Example of configuration:
 Supported agents:
 
 - [aider](https://aider.chat)
+- [antigravity](https://antigravity.google/cli)
 - [cecli](https://github.com/cecli-dev/cecli)
 - [claude](https://claude.ai)
 - [codex](https://github.com/openai/codex)
 - [copilot](https://github.com/github/copilot-cli)
+- [cursor](https://cursor.com/docs/agent/overview)
 - [gemini](https://geminicli.com)
 - [goose](https://github.com/aaif-goose/goose)
 - [opencode](https://opencode.ai)
