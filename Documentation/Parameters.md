@@ -38,6 +38,17 @@ This variable allows you to override the shell that will be used in the
 container (the default is `/bin/bash`). If the user changes this parameter,
 user must take care of installing shell package in the container.
 
+## devkit.check-upgrade
+
+Checks for a newer devkit release when `devkit run` starts. The check is
+enabled by default. Set the parameter to `false` to disable it.
+
+Example:
+
+```sh
+git config devkit.check-upgrade false
+```
+
 ## devkit.packages
 
 List of Ubuntu packages installed into the container.
