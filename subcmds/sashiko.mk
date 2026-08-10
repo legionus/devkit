@@ -4,8 +4,9 @@
 SASHIKO_GOALS = sashiko sashiko-daemon sashiko-kill sashiko-logs
 PUBLIC_GOALS += $(SASHIKO_GOALS)
 
-SASHIKO_PROVIDER  = $(shell $(GIT_CONFIG_GET) devkit.sashiko-provider || echo $(AGENT)-cli)
-SASHIKO_MODEL     = $(shell $(GIT_CONFIG_GET) devkit.sashiko-model    || echo use-own-agent-model)
+SASHIKO_PROVIDER   = $(shell $(GIT_CONFIG_GET) devkit.sashiko-provider   || echo $(AGENT)-cli)
+SASHIKO_MODEL      = $(shell $(GIT_CONFIG_GET) devkit.sashiko-model      || echo use-own-agent-model)
+SASHIKO_CONCURRENT = $(shell $(GIT_CONFIG_GET) devkit.sashiko-concurrent || echo 1)
 
 SASHIKO_CONTAINER = $(PODMAN_CONTAINER)-sashiko
 SASHIKO_HOME      = .local/share/sashiko
@@ -45,7 +46,7 @@ $(HOME)/$(SASHIKO_HOME)/Settings.toml: $(HOME)/$(SASHIKO_HOME)
 	  mailing_lists.track = ""
 	  nntp.port = 119
 	  nntp.server = "nntp.lore.kernel.org"
-	  review.concurrency = 20
+	  review.concurrency = $(SASHIKO_CONCURRENT)
 	  review.worktree_dir = "/home/user/$(SASHIKO_HOME)/worktries"
 	  server.host = "::"
 	  server.port = 8080
