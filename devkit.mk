@@ -50,6 +50,7 @@ SUBCMDS = $(basename $(notdir $(wildcard $(DEVKIT_WORKDIR)/subcmds/*.mk)))
 ifeq ($(filter $(SIMPLE_GOALS),$(MAKECMDGOALS)),) # not SIMPLE_GOALS
 GITPROJDIR = $(shell $(GIT) rev-parse --show-toplevel 2>/dev/null)
 PROJNAME   = $(notdir $(GITPROJDIR))
+PODMAN_PROJNAME = $(shell $(GIT_CONFIG_GET) devkit.reponame || echo $(PROJNAME))
 WORKDIR    = /srv/$(PROJNAME)
 
 $(if $(PROJNAME),,$(error Unable to locate the git repository))
@@ -149,8 +150,8 @@ PODMAN_VOLUMES = \
 	--volume=$(GITPROJDIR):/srv/$(PROJNAME):rw,Z \
 	$(addprefix --volume=,$(VOLUMES))
 
-PODMAN_CONTAINER = $(AGENT)-for-$(PROJNAME)
-PODMAN_IMAGE = localhost/devkit/$(PROJNAME):$(AGENT)
+PODMAN_CONTAINER = $(AGENT)-for-$(PODMAN_PROJNAME)
+PODMAN_IMAGE = localhost/devkit/$(PODMAN_PROJNAME):$(AGENT)
 PODMAN_PATH =
 
 endif # not SIMPLE_GOALS

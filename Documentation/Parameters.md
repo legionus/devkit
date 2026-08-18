@@ -32,6 +32,22 @@ Example:
 git config devkit.agent codex
 ```
 
+## devkit.reponame
+
+Overrides the repository name used in the podman container and image names.
+The default is the basename of the repository directory. This parameter does
+not change the repository mount point or working directory inside the
+container.
+
+The configured value must be a valid podman container and image name
+component.
+
+Example:
+
+```sh
+git config devkit.reponame normalized-name
+```
+
 ## devkit.shell
 
 This variable allows you to override the shell that will be used in the
