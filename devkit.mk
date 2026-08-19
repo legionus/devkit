@@ -4,7 +4,7 @@
 
 CURFILE := $(lastword $(MAKEFILE_LIST))
 PROG ?= make -f $(CURFILE) --
-VERSION = 5
+VERSION = 6
 DEVKIT_HOMEURL = https://github.com/devkit-dev/devkit/releases/latest
 DEVKIT_WORKDIR = $(realpath $(dir $(CURFILE)))
 
