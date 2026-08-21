@@ -34,13 +34,15 @@ git config devkit.agent codex
 
 ## devkit.reponame
 
-Overrides the repository name used in the podman container and image names.
-The default is the basename of the repository directory. This parameter does
-not change the repository mount point or working directory inside the
-container.
+Overrides the repository name used in the podman container and image
+names. The default is the basename of the repository directory. This
+parameter does not change the repository mount point or working
+directory inside the container.
 
-The configured value must be a valid podman container and image name
-component.
+The value must be at most 238 characters. It must consist of lowercase
+letters and digits, optionally separated by a period, one or two
+underscores, or one or more hyphens. It must start and end with a letter
+or digit.
 
 Example:
 

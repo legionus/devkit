@@ -50,10 +50,23 @@ SUBCMDS = $(basename $(notdir $(wildcard $(DEVKIT_WORKDIR)/subcmds/*.mk)))
 ifeq ($(filter $(SIMPLE_GOALS),$(MAKECMDGOALS)),) # not SIMPLE_GOALS
 GITPROJDIR = $(shell $(GIT) rev-parse --show-toplevel 2>/dev/null)
 PROJNAME   = $(notdir $(GITPROJDIR))
-PODMAN_PROJNAME = $(shell $(GIT_CONFIG_GET) devkit.reponame || echo $(PROJNAME))
+get-podman-projname = $(GIT_CONFIG_GET) devkit.reponame || basename -- "$$($(GIT) rev-parse --show-toplevel 2>/dev/null)"
+PODMAN_PROJNAME = $(shell $(get-podman-projname))
+PODMAN_PROJNAME_VALID = $(shell name="$$($(get-podman-projname))"; [ "$${#name}" -le 238 ] && printf '%s\0' "$$name" | grep -zEq '^[a-z0-9]+((([._]|__)|-+)[a-z0-9]+)*$$' && echo yes)
 WORKDIR    = /srv/$(PROJNAME)
 
+define invalid-podman-projname
+DEVKIT STOPPED: invalid Podman project name '$(PODMAN_PROJNAME)'.
+The name cannot be used safely in Podman container and image names.
+Use at most 238 lowercase letters, digits, periods, underscores, or
+hyphens; start and end with a letter or digit.
+Set a valid name and retry:
+  git config devkit.reponame NAME
+Then rerun the devkit command
+endef
+
 $(if $(PROJNAME),,$(error Unable to locate the git repository))
+$(if $(PODMAN_PROJNAME_VALID),,$(error $(invalid-podman-projname)))
 
 VENDOR   = ubuntu
 AGENT    = $(shell $(GIT_CONFIG_GET)     devkit.agent    || echo dummy)
