@@ -3,15 +3,17 @@
 devkit reads these parameters from the git-config of the project for which the
 agent is started.
 
-Normal image builds use podman's intermediate-layer cache. The `upgrade`
-command bypasses this cache and pulls the current ubuntu base image before
-building. The `clean` and `clean-all` commands remove tagged images but retain
-the intermediate build cache.
+Devkit keeps one tagged agent-base image per selected agent. It contains
+fixed packages and agent dependencies, and is shared by all repositories
+using that agent. Project packages, optional services, and custom build
+commands are added in a separate project image.
 
-Fixed packages, agent dependencies, the agent, `devkit.packages`, optional
-sashiko support, and custom build commands are separate build stages. Agent
-installation precedes `devkit.packages`, allowing projects with different
-package lists to share the larger agent layers when they use the same agent.
+Normal project builds also use podman's intermediate-layer cache. The
+`upgrade` rebuilds the selected agent base and project image without cache,
+pulling the current Ubuntu base. Existing images for other projects retain
+their embedded base until rebuilt. `clean` retains the shared agent base;
+`clean-all` removes it. Podman's untagged intermediate cache remains under
+podman cache management.
 
 Inspect configuration:
 
@@ -125,12 +127,14 @@ echo "container is starting"
 
 ## devkit.build-command
 
-Shell fragment executed as root while building the agent image.
+Shell fragment executed as root while building the project image.
 
-This is intended for project-specific image customization that does not fit
-into the package list, such as installing extra tools from a mounted script.
-The command value is part of the image identity, so changing it causes devkit
-to build a new image.
+This is intended for project-specific image customization that does not
+fit into the package list, such as installing extra tools from a mounted
+script. The command value is part of the project-image identity.
+Changing it builds a new project image from the existing agent base.
+Removing it restores the empty-command identity; devkit reuses an existing
+matching project image when one is available.
 
 Example:
 

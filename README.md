@@ -33,20 +33,15 @@ packages, additional volumes, build customizations and lifecycle hooks. Shared
 profiles are ordinary git-config include files, so a repository can inherit a
 baseline environment and override only the parts that differ locally.
 
-From that configuration devkit derives an image identity. If a matching image
-already exists, it is reused. Otherwise devkit builds a new image from an ubuntu
-base, installs the selected agent and requested packages, applies build-time
-customizations, and records metadata labels such as the agent, agent version and
-configuration hash.
+From that configuration devkit derives a project-image identity. A tagged
+agent base contains fixed packages, agent dependencies, and the selected
+agent. All repositories using that agent share the base. The project image
+adds configured packages, optional services, and build-time customizations.
 
-Whole-image reuse requires the complete image identity to match. Git include
-files compose configuration but do not create parent images or separate package
-layers. When devkit must build an image, podman may reuse unchanged intermediate
-layers from earlier builds. Fixed packages, agent dependencies, the agent, the
-configured package list, and optional sashiko support are built in separate
-steps. Agent dependencies and installation precede the configured package
-list, allowing images for the same agent to share its layers when their
-configured packages differ.
+If a matching project image already exists, it is reused. Otherwise
+devkit builds it from the tagged agent base. Podman may reuse unchanged
+intermediate layers within the project build. Changing project packages
+or customizations therefore does not reinstall the agent.
 
 At runtime devkit starts a named podman container for the repository. The
 project tree is mounted at `/srv/<project-name>`, the selected agent
@@ -123,8 +118,9 @@ Remove all devkit images:
 $ devkit.sh clean-all
 ```
 
-The clean commands remove tagged devkit images. They retain podman's
-intermediate build cache, which remains under podman cache management.
+`clean` removes the current project image but retains the shared agent base.
+`clean-all` removes project images and agent bases. Podman's untagged
+intermediate build cache remains under podman cache management.
 
 ### Optional Sashiko review service
 
@@ -238,16 +234,16 @@ Benefits:
 
 - single source of truth
 - consistent tooling
-- automatic image reuse when complete image identities match
+- automatic project-image reuse and shared agent bases
 - minimal per-repository setup
 
 Local repository configuration may override included values.
 
-An included profile is not a parent-image boundary. Projects that add different
-package sets produce different complete image identities, but projects using
-the same agent can share layers through the agent installation. The configured
-package layer is shared only when its package list and all preceding layers
-match.
+An included profile is not a parent-image boundary. Projects using the same
+agent share a tagged agent base. Projects that add different package sets
+produce different project images while retaining that common base. Devkit
+rebuilds the base only during `upgrade`; existing project images retain their
+embedded base until rebuilt.
 
 ## License
 
