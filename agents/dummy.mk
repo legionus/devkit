@@ -5,8 +5,8 @@ HOMEURL =
 INST    =
 LINK    =
 BIN     = bash
-CONFDIR =
-DATADIR =
+WRITABLE_DIRS =
+READABLE_DIRS =
 SCR_ENV =
 
 get-github-release = echo dummy

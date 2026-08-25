@@ -137,13 +137,8 @@ ifneq ($(wildcard $(HOOKS)),)
 VOLUMES += $(HOOKS):/.devkit/hooks.d:ro
 endif
 
-ifneq ($(DATADIR),)
-VOLUMES += $(HOME)/$(DATADIR):/home/user/$(DATADIR):rw,Z
-endif
-
-ifneq ($(CONFDIR),)
-VOLUMES += $(HOME)/$(CONFDIR):/home/user/$(CONFDIR):rw,Z
-endif
+VOLUMES += $(foreach d,$(WRITABLE_DIRS),$(HOME)/$(d):/home/user/$(d):rw,Z)
+VOLUMES += $(foreach d,$(READABLE_DIRS),$(HOME)/$(d):/home/user/$(d):ro,Z)
 
 CONFFILE_OPTIONS = rw,Z
 VOLUMES += $(foreach f,$(CONFFILES),$(if $(wildcard $(HOME)/$(f)),$(HOME)/$(f):/home/user/$(f):$(CONFFILE_OPTIONS)))
@@ -239,7 +234,8 @@ _check-version:
 	image_ver="`$(PODMAN) image list --filter 'reference=$(PODMAN_IMAGE)' --format '{{index .Labels "local.devkit.agent.version"}}'`";
 	echo "The $(AGENT) information:";
 	echo " - release home page: $(HOMEURL)";
-	echo " -  config directory: ~/$(CONFDIR)";
+	echo " - writable directories: $(addprefix ~/,$(WRITABLE_DIRS))";
+	echo " - readable directories: $(addprefix ~/,$(READABLE_DIRS))";
 	echo " - available version: $${avail_ver:-*unavailable*}";
 	echo " -   current version: $${image_ver:-*unknown*}";
 
@@ -267,8 +263,7 @@ init:
 
 _create_local_dirs:
 	$(Q)set -e --;
-	[ -z '$(CONFDIR)' ] || mkdir -p -- $(HOME)/$(CONFDIR)
-	[ -z '$(DATADIR)' ] || mkdir -p -- $(HOME)/$(DATADIR)
+	$(foreach d,$(WRITABLE_DIRS) $(READABLE_DIRS),mkdir -p -- $(HOME)/$(d);)
 
 ubuntu.packages     = ca-certificates git bash vim-tiny curl tar debianutils
 ubuntu.packages.npm = npm

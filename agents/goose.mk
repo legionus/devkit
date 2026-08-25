@@ -5,8 +5,8 @@ HOMEURL = https://github.com/aaif-goose/goose/releases/latest
 INST    = scr
 LINK    = https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh
 BIN     = goose
-CONFDIR = .config/goose
-DATADIR = .local/share/goose
+WRITABLE_DIRS = .config/goose .local/share/goose .local/state/goose
+READABLE_DIRS =
 SCR_ENV = CONFIGURE=false
 
 # bzip2 is needed to install goose

@@ -5,8 +5,8 @@ HOMEURL = https://cursor.com/docs/agent/overview
 INST    = scr
 LINK    = https://cursor.com/install
 BIN     = cursor-agent
-CONFDIR = .cursor
-DATADIR =
+WRITABLE_DIRS = .cursor
+READABLE_DIRS =
 SCR_ENV =
 
 RELEASE_URL = https://api2.cursor.sh/updates/download/golden/linux-x64/cursor/

@@ -7,8 +7,8 @@ HOMEURL = https://github.com/Aider-AI/aider/releases/latest
 INST    = scr
 LINK    = https://aider.chat/install.sh
 BIN     = aider
-CONFDIR = .aider
-DATADIR =
+WRITABLE_DIRS = .aider
+READABLE_DIRS =
 SCR_ENV =
 
 CONFFILES = .aider.conf.yml .aider.model.metadata.json .aider.model.settings.yml
