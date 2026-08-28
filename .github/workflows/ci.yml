@@ -24,6 +24,7 @@ jobs:
           - grok
           - kimi
           - opencode
+          - pi
           - vibe
       fail-fast: false
     steps:

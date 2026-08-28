@@ -199,6 +199,7 @@ Supported agents:
 - [gemini](https://geminicli.com)
 - [goose](https://github.com/aaif-goose/goose)
 - [opencode](https://opencode.ai)
+- [pi](https://pi.dev)
 - [grok (unofficial)](https://grokcli.io)
 - [vibe](https://docs.mistral.ai/mistral-vibe/terminal)
 - [kimi](https://moonshotai.github.io/kimi-code/en/)
