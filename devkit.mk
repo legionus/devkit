@@ -265,7 +265,7 @@ _create_local_dirs:
 	$(Q)set -e --;
 	$(foreach d,$(WRITABLE_DIRS) $(READABLE_DIRS),mkdir -p -- $(HOME)/$(d);)
 
-ubuntu.packages     = ca-certificates git bash vim-tiny curl tar debianutils
+ubuntu.packages     = ca-certificates git bash vim-tiny curl tar debianutils gawk file ripgrep
 ubuntu.packages.npm = npm
 ubuntu.packages.pip = python3-venv
 ubuntu.packages.scr = bash curl
